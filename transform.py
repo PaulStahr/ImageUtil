@@ -20,7 +20,7 @@ def process_frame(filenames, outputs, logging):
             img.append(imageio.imread(filename))
         #print("images", len(img), 'out', outputs)
         for output in outputs:
-            out = eval(output[0])
+            out = eval(output[0], {'np':np, 'img':img})
             #print("shape", out.shape)
             #print(out)
             imageio.imwrite(output[1], out)
@@ -54,4 +54,5 @@ while i < len(sys.argv):
         raise Exception('Invalid input', arg)
 for i in range(len(inputs)):
     inputs[i].sort()
+#print("inputs", inputs)
 process_frames(inputs, outputs, logging)
