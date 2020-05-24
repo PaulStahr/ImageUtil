@@ -4,6 +4,7 @@ from joblib import Parallel, delayed
 from enum import Enum
 import multiprocessing
 import imageio
+import os
 
 class CmdMode(Enum):
     UNDEF = 0
@@ -14,16 +15,15 @@ class CmdMode(Enum):
 def process_frame(filenames, outputs, logging):
     #print(filenames)
     for i in range(filenames.shape[1]):
-        img = []
         for filename in filenames[:,i]:
             #print("read", filename)
-            img.append(imageio.imread(filename))
-        #print("images", len(img), 'out', outputs)
-        for output in outputs:
-            out = eval(output[0], {'np':np, 'img':img})
-            #print("shape", out.shape)
-            #print(out)
-            imageio.imwrite(output[1], out)
+            img = imageio.imread(filename)
+            #print("images", len(img), 'out', outputs)
+            for output in outputs:
+                out = eval(output[0], {'np':np, 'img':img})
+                print("shape", out.shape)
+                #print(out)
+                imageio.imwrite(output[1] + '/' + os.path.basename(filename), out)
     
     
 def process_frames(inputs, outputs, logging):
