@@ -80,23 +80,13 @@ def process_frames(filenames, mode, criteria, expression, offset, logging):
                 accepted += img[1]
     return (added, accepted)
 
+def read_numbers(filename):
+    with open(filename,'r') as f:
+         return np.asarray([int(x) for x in f])
+
 imageio.plugins.freeimage.download()
 filenames = []
-verbose_idx = get_index(sys.argv, "logging")
-logging = 0
-if verbose_idx != -1:
-    logging=int(sys.argv[verbose_idx +1])
-if logging < 1:
-    print(sys.argv)
-
-cap_idx = get_index(sys.argv, "cap")
-cap = np.inf
-if cap_idx != -1:
-    cap = int(sys.argv[cap_idx + 1])
 divide = True
-divide_idx = get_index(sys.argv, "divide")
-if divide_idx != -1:
-    divide = sys.argv[divide_idx + 1].lower() in ("true", "yes", "1")
 mode_idx = get_index(sys.argv, "mode")
 premode = None
 mode = Mode.AVERAGE
@@ -120,23 +110,60 @@ if mode_idx != -1:
     else:
         print("Value ",value," not known")
         
-expression_index = get_index(sys.argv, "expression")
 expression = None
-if expression_index != -1:
-    expression = compile(sys.argv[expression_index + 1], '<string>', 'eval')
-
-criteria_index = get_index(sys.argv, "criteria")
 criteria = None
-if criteria_index != -1:
-    criteria = compile(sys.argv[criteria_index + 1], '<string>', 'eval')
+show = False
+logging = 0
+coutput = None
+noutput = None
+moutput = None
 
-input_idx = get_index(sys.argv, "input")
-for arg in sys.argv[input_idx + 1:]:
-    filenames = filenames + glob.glob(arg)
-filenames.sort()
+for i in range(len(sys.argv)):
+    arg = sys.argv[i]
+    if arg == "mframelist":
+        framelist = sys.argv[i + 1]
+        prefix = sys.argv[i + 2]
+        suffix = sys.argv[i + 3]
+        i += 3
+        filenames = np.core.defchararray.add(np.core.defchararray.add(prefix,(read_numbers(framelist)-1).astype(str)),suffix)
+    if arg == "framelist":
+        framelist = sys.argv[i + 1]
+        prefix = sys.argv[i + 2]
+        suffix = sys.argv[i + 3]
+        i += 3
+        filenames = np.core.defchararray.add(np.core.defchararray.add(prefix,read_numbers(framelist).astype(str)),suffix)
+    elif arg == "input":
+        for arg in sys.argv[i + 1:]:
+            filenames = filenames + glob.glob(arg)
+        filenames.sort()
+        break
+    elif arg == "criteria":
+        criteria = compile(sys.argv[i + 1], '<string>', 'eval')
+        i += 1
+    elif arg == "expression":
+        expression = compile(sys.argv[i + 1], '<string>', 'eval')
+        i += 1
+    elif arg == "showplot":
+        show = True
+    elif arg == "logging":
+        logging=int(sys.argv[i + 1])
+        i += 1
+    elif arg == "divide":
+        divide = sys.argv[i + 1].lower() in ("true", "yes", "1")
+        i += 1
+    elif arg == "coutput":
+        coutput = sys.argv[i + 1]
+        i += 1
+    elif arg == "noutput":
+        noutput = sys.argv[i + 1]
+        i += 1
+    elif arg == "moutput":
+        moutput = sys.argv[i + 1]
+        i += 1
+        
 
-show = get_index(sys.argv, "showplot") != -1
-
+if logging < 1:
+    print(sys.argv)
 if logging < 0:
     print(filenames)
 preimage = None
@@ -158,26 +185,20 @@ else:
     image = preimage
 print("accepted",len(accepted),"of",len(filenames))
 
-coutput_idx = get_index(sys.argv, "coutput")
-if coutput_idx != -1:
-    coutput = sys.argv[coutput_idx + 1]
+if coutput is not None:
     print(coutput , len(accepted))
     file = open(coutput,"w")
     file.write(str(len(accepted)))
     file.close()
 
-noutput_idx = get_index(sys.argv, "noutput")
-if noutput_idx != -1:
-    noutput = sys.argv[noutput_idx + 1]
+if noutput is not None:
     print(noutput , len(accepted))
     file = open(noutput,"w")
     for file in accepted:
         file.write(os.path.splitext(file)[0])
     file.close()
 
-moutput_idx = get_index(sys.argv, "moutput")
-if moutput_idx != -1:
-    moutput = sys.argv[moutput_idx + 1]
+if moutput is not None:
     print(moutput , len(accepted))
     indices = []
     for afile in accepted:
