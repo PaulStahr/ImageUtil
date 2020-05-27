@@ -42,16 +42,13 @@ def process_frame(filenames, mode, criteria, expression, offset, logging):
         if expression is not None:
             img = eval(expression)
         img = img.astype(float)
+        if mode == Mode.VARIANCE_ARC and img.shape[2] != 3:
+            raise Exception("Shape of image is completely wrong", img.shape)
         if mode == Mode.AVERAGE_NORMALIZED or mode == Mode.VARIANCE_ARC:
-            #if np.min(np.abs(LA.norm(img, axis=2))) == 0:
-            #    plt.imshow(LA.norm(img, axis=2))
-            #    plt.show()
             div = LA.norm(img, axis=2)[...,None]
-            if np.any(div == 0):
-                raise Exception("Image ",str(file),"contains zero-pixel")
+            if np.all(div == 0):
+                raise Exception("Warning image ",str(file)," is completely zero")
             img /= div
-            #plt.imshow(img*0.5 + 0.5)
-            #plt.show()
         if offset is not None:
             img -= offset
         accepted.append(file)
