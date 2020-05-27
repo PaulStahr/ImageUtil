@@ -46,7 +46,10 @@ def process_frame(filenames, mode, criteria, expression, offset, logging):
             #if np.min(np.abs(LA.norm(img, axis=2))) == 0:
             #    plt.imshow(LA.norm(img, axis=2))
             #    plt.show()
-            img /= LA.norm(img, axis=2)[...,None]
+            div = LA.norm(img, axis=2)[...,None]
+            if np.any(div == 0):
+                raise Exception("Image ",str(file),"contains zero-pixel")
+            img /= div
             #plt.imshow(img*0.5 + 0.5)
             #plt.show()
         if offset is not None:
