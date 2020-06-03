@@ -202,49 +202,49 @@ elif premode is not None:
         plt.show()
     if preout != None:
         imageio.imwrite(preout, preimage.astype(np.float32))
-if eoutput is None and coutput is None and noutput is None and moutput is None and output is None and doutput is None
-image = None
-if mode is not None:
-    print("second pass")
-    image, accepted, extracted = process_frames(filenames, mode, criteria, expression, extract, preimage, logging)
-    if mode == Mode.VARIANCE_NORMALIZED or mode == Mode.AVERAGE_NORMALIZED:
-        image = LA.norm(image, axis=2)
-else:
-    image = preimage
-print("accepted",len(accepted),"of",len(filenames))
+if eoutput is None and coutput is None and noutput is None and moutput is None and output is None and doutput is None:
+    image = None
+    if mode is not None:
+        print("second pass")
+        image, accepted, extracted = process_frames(filenames, mode, criteria, expression, extract, preimage, logging)
+        if mode == Mode.VARIANCE_NORMALIZED or mode == Mode.AVERAGE_NORMALIZED:
+            image = LA.norm(image, axis=2)
+    else:
+        image = preimage
+    print("accepted",len(accepted),"of",len(filenames))
 
-if eoutput is not None:
-    file = open(eoutput, 'w')
-    np.savetxt(extracted, file, delimiter=' ')
-    file.close()
+    if eoutput is not None:
+        file = open(eoutput, 'w')
+        np.savetxt(extracted, file, delimiter=' ')
+        file.close()
 
-if coutput is not None:
-    print(coutput , len(accepted))
-    file = open(coutput,"w")
-    file.write(str(len(accepted)))
-    file.close()
+    if coutput is not None:
+        print(coutput , len(accepted))
+        file = open(coutput,"w")
+        file.write(str(len(accepted)))
+        file.close()
 
-if noutput is not None:
-    print(noutput , len(accepted))
-    file = open(noutput,"w")
-    for file in accepted:
-        file.write(os.path.splitext(file)[0])
-    file.close()
+    if noutput is not None:
+        print(noutput , len(accepted))
+        file = open(noutput,"w")
+        for file in accepted:
+            file.write(os.path.splitext(file)[0])
+        file.close()
 
-if moutput is not None:
-    print(moutput , len(accepted))
-    indices = []
-    for afile in accepted:
-        indices.append(int(os.path.splitext(ntpath.basename(afile))[0]))
-    indices = np.asarray(indices) + 1
-    indices=np.sort(indices)
-    file = open(moutput,"w")
-    for idx in indices:
-        file.write(str(idx) + '\n')
-    file.close()
+    if moutput is not None:
+        print(moutput , len(accepted))
+        indices = []
+        for afile in accepted:
+            indices.append(int(os.path.splitext(ntpath.basename(afile))[0]))
+        indices = np.asarray(indices) + 1
+        indices=np.sort(indices)
+        file = open(moutput,"w")
+        for idx in indices:
+            file.write(str(idx) + '\n')
+        file.close()
 
-image = np.where(np.isnan(image), np.zeros_like(image), image)
-if doutput is not None:
-    divided = image / len(accepted)
-    imageio.imwrite(doutput,divided.astype(np.float32))
-imageio.imwrite(output,image.astype(np.float32))
+    #image = np.where(np.isnan(image), np.zeros_like(image), image)
+    if doutput is not None:
+        divided = image / len(accepted)
+        imageio.imwrite(doutput,divided.astype(np.float32))
+    imageio.imwrite(output,image.astype(np.float32))
