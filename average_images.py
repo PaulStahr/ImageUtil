@@ -123,6 +123,8 @@ moutput = None
 preout = None
 prein = None
 eoutput = None
+output = None
+doutput = None
 extract = []
 
 i = 0
@@ -156,9 +158,6 @@ while i <len(sys.argv):
     elif arg == "logging":
         logging=int(sys.argv[i + 1])
         i += 1
-    elif arg == "divide":
-        divide = sys.argv[i + 1].lower() in ("true", "yes", "1")
-        i += 1
     elif arg == "coutput":
         coutput = sys.argv[i + 1]
         i += 1
@@ -167,6 +166,12 @@ while i <len(sys.argv):
         i += 1
     elif arg == "moutput":
         moutput = sys.argv[i + 1]
+        i += 1
+    elif arg == "doutput":
+        doutput = sys.argv[i + 1]
+        i += 1
+    elif arg == "output":
+        output = sys.argv[i + 1]
         i += 1
     elif arg == "eoutput":
         eoutput = sys.argv[i + 1]
@@ -197,6 +202,7 @@ elif premode is not None:
         plt.show()
     if preout != None:
         imageio.imwrite(preout, preimage.astype(np.float32))
+if eoutput is None and coutput is None and noutput is None and moutput is None and output is None and doutput is None
 image = None
 if mode is not None:
     print("second pass")
@@ -237,23 +243,8 @@ if moutput is not None:
         file.write(str(idx) + '\n')
     file.close()
 
-if image is not None:
-    doutput_idx = get_index(sys.argv, "doutput")
-    image = np.where(np.isnan(image), np.zeros_like(image), image)
-    if doutput_idx != -1:
-        doutput_file = sys.argv[doutput_idx + 1]
-        if len(accepted) != 0:
-            divided = image / len(accepted)
-            imageio.imwrite(doutput_file,divided.astype(np.float32))
-
-    output_idx = get_index(sys.argv, "output")
-    if output_idx != -1:
-        output_file = sys.argv[output_idx + 1]
-        imageio.imwrite(output_file,image.astype(np.float32))
-        #image=imageio.imread(output_file)
-        #print(np.min(image), np.max(image))
-        #if show:
-        #    plt.imshow(image / 255)
-        #    plt.show()
-
-        #imageio.imwrite(sys.argv[output_idx + 1],image.astype(np.uint8))
+image = np.where(np.isnan(image), np.zeros_like(image), image)
+if doutput is not None:
+    divided = image / len(accepted)
+    imageio.imwrite(doutput,divided.astype(np.float32))
+imageio.imwrite(output,image.astype(np.float32))
