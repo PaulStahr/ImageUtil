@@ -27,13 +27,14 @@ def get_index(arg,name):
     except:
         return -1
 
-def process_frame(filenames, mode, criteria, expression, offset, logging):
+def process_frame(filenames, mode, criteria, expression, extract, offset, logging):
     if len(filenames) == 0:
         return None
     if logging < 0:
         print(filenames)
     added = None
     accepted = []
+    extracted = []
     for file in filenames:
         img = imageio.imread(file)
         if criteria is not None:
@@ -62,23 +63,25 @@ def process_frame(filenames, mode, criteria, expression, offset, logging):
             added += to_add
         else:
             added = to_add
-    return (added, accepted)
+        extracted.append(to_add[extract])
+    return (added, accepted, extracted)
 
-def process_frames(filenames, mode, criteria, expression, offset, logging):
+def process_frames(filenames, mode, criteria, expression, extract, offset, logging):
     num_cores = multiprocessing.cpu_count()
     factor = (len(filenames) + num_cores - 1) // num_cores
-    image_list=Parallel(n_jobs=num_cores)(delayed(process_frame)(filenames[i * factor:min((i + 1) * factor,len(filenames))], mode, criteria, expression, offset, logging) for i in range(num_cores))
+    image_list=Parallel(n_jobs=num_cores)(delayed(process_frame)(filenames[i * factor:min((i + 1) * factor,len(filenames))], mode, criteria, expression, extract, offset, logging) for i in range(num_cores))
     accepted = []
+    extracted = []
     added = None
     for img in image_list:
         if img is not None and img[0] is not None:
             if added is not None:
                 added+=img[0]
-                accepted += img[1]
             else:
                 added=img[0]
-                accepted += img[1]
-    return (added, accepted)
+            accepted += img[1]
+            extracted += img[2]
+    return (added, accepted, extracted)
 
 def read_numbers(filename):
     with open(filename,'r') as f:
@@ -117,8 +120,13 @@ logging = 0
 coutput = None
 noutput = None
 moutput = None
+preout = None
+prein = None
+eoutput = None
+extract = []
 
-for i in range(len(sys.argv)):
+i = 0
+while i <len(sys.argv):
     arg = sys.argv[i]
     if arg == "mframelist":
         framelist = sys.argv[i + 1]
@@ -160,30 +168,49 @@ for i in range(len(sys.argv)):
     elif arg == "moutput":
         moutput = sys.argv[i + 1]
         i += 1
-        
+    elif arg == "eoutput":
+        eoutput = sys.argv[i + 1]
+        i += 1
+    elif arg == "preout":
+        preout = sys.argv[i + 1]
+        i += 1
+    elif arg == "prein":
+        prein = sys.argv[i + 1]
+        i += 1
+    elif arg == "extract":
+        extract += np.fromstring(sys.argv[i + 1])
+    i += 1    
 
 if logging < 1:
     print(sys.argv)
 if logging < 0:
     print(filenames)
 preimage = None
-if premode is not None:
-    preimage, accepted=process_frames(filenames, premode, criteria, expression, None, logging)
-    print("accepted",accepted)
+if prein is not None:
+    preimage = imageio.imread(prein)
+elif premode is not None:
+    preimage, accepted, extracted=process_frames(filenames, premode, criteria, expression, extract, None, logging)
     preimage /= len(accepted)
+    #TODO: maybe normalize again for some measures?
     if show:
         plt.imshow(preimage)
         plt.show()
-    print("preimage ", preimage.shape);
+    if preout != None:
+        imageio.imwrite(preout, preimage.astype(np.float32))
 image = None
 if mode is not None:
     print("second pass")
-    image, accepted = process_frames(filenames, mode, criteria, expression, preimage, logging)
+    image, accepted, extracted = process_frames(filenames, mode, criteria, expression, extract, preimage, logging)
     if mode == Mode.VARIANCE_NORMALIZED or mode == Mode.AVERAGE_NORMALIZED:
         image = LA.norm(image, axis=2)
 else:
     image = preimage
 print("accepted",len(accepted),"of",len(filenames))
+
+if eoutput is not None:
+    file = open(eoutput, 'w')
+    np.savetxt(extracted, file, delimiter=' ')
+    file.close()
 
 if coutput is not None:
     print(coutput , len(accepted))
@@ -217,12 +244,12 @@ if image is not None:
         doutput_file = sys.argv[doutput_idx + 1]
         if len(accepted) != 0:
             divided = image / len(accepted)
-            imageio.imwrite(doutput_file,(divided).astype(np.float32))
+            imageio.imwrite(doutput_file,divided.astype(np.float32))
 
     output_idx = get_index(sys.argv, "output")
     if output_idx != -1:
         output_file = sys.argv[output_idx + 1]
-        imageio.imwrite(output_file,(image).astype(np.float32))
+        imageio.imwrite(output_file,image.astype(np.float32))
         #image=imageio.imread(output_file)
         #print(np.min(image), np.max(image))
         #if show:
