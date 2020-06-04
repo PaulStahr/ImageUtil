@@ -202,7 +202,7 @@ elif premode is not None:
         plt.show()
     if preout != None:
         imageio.imwrite(preout, preimage.astype(np.float32))
-if eoutput is None and coutput is None and noutput is None and moutput is None and output is None and doutput is None:
+if eoutput is not None or coutput is not None or noutput is not None or moutput is not None or output is not None or doutput is not None:
     image = None
     if mode is not None:
         print("second pass")
@@ -247,4 +247,5 @@ if eoutput is None and coutput is None and noutput is None and moutput is None a
     if doutput is not None:
         divided = image / len(accepted)
         imageio.imwrite(doutput,divided.astype(np.float32))
-    imageio.imwrite(output,image.astype(np.float32))
+    if output is not None:
+        imageio.imwrite(output,image.astype(np.float32))
