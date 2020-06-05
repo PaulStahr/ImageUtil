@@ -90,29 +90,8 @@ def read_numbers(filename):
 imageio.plugins.freeimage.download()
 filenames = []
 divide = True
-mode_idx = get_index(sys.argv, "mode")
 premode = None
 mode = Mode.AVERAGE
-if mode_idx != -1:
-    value = sys.argv[mode_idx + 1]
-    if value == "average":
-        premode = None
-        mode = Mode.AVERAGE
-    elif value == "averagem":
-        premode = None
-        mode = Mode.AVERAGE_NORMALIZED
-    elif value == "variance":
-        premode = Mode.AVERAGE
-        mode = Mode.VARIANCE
-    elif value == "variancem":
-        premode = Mode.AVERAGE_NORMALIZED
-        mode = Mode.VARIANCE_NORMALIZED
-    elif value == "variancea":
-        premode = Mode.AVERAGE_NORMALIZED
-        mode = Mode.VARIANCE_ARC
-    else:
-        print("Value ",value," not known")
-        
 expression = None
 criteria = None
 show = False
@@ -127,16 +106,36 @@ output = None
 doutput = None
 extract = []
 
-i = 0
+i = 1
 while i <len(sys.argv):
     arg = sys.argv[i]
-    if arg == "mframelist":
+    if arg == "mode":
+        value = sys.argv[i + 1]
+        if value == "average":
+            premode = None
+            mode = Mode.AVERAGE
+        elif value == "averagem":
+            premode = None
+            mode = Mode.AVERAGE_NORMALIZED
+        elif value == "variance":
+            premode = Mode.AVERAGE
+            mode = Mode.VARIANCE
+        elif value == "variancem":
+            premode = Mode.AVERAGE_NORMALIZED
+            mode = Mode.VARIANCE_NORMALIZED
+        elif value == "variancea":
+            premode = Mode.AVERAGE_NORMALIZED
+            mode = Mode.VARIANCE_ARC
+        else:
+            raise Exception("Value ",value," not known")
+        i += 1
+    elif arg == "mframelist":
         framelist = sys.argv[i + 1]
         prefix = sys.argv[i + 2]
         suffix = sys.argv[i + 3]
         i += 3
         filenames = np.core.defchararray.add(np.core.defchararray.add(prefix,(read_numbers(framelist)-1).astype(str)),suffix)
-    if arg == "framelist":
+    elif arg == "framelist":
         framelist = sys.argv[i + 1]
         prefix = sys.argv[i + 2]
         suffix = sys.argv[i + 3]
@@ -183,9 +182,16 @@ while i <len(sys.argv):
         prein = sys.argv[i + 1]
         i += 1
     elif arg == "extract":
-        extract += np.fromstring(sys.argv[i + 1])
-    i += 1    
-
+        extract.append(np.fromstring(sys.argv[i + 1], sep=',', dtype=int))
+        i += 1
+    else:
+        raise Exception("Unknown argument " + arg)
+    i += 1
+print("extract:",extract)
+extract=(*np.asarray(extract).T,)
+if len(extract) == 0:
+    extract = ([],[])
+print("extract:",extract)
 if logging < 1:
     print(sys.argv)
 if logging < 0:
@@ -214,9 +220,7 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
     print("accepted",len(accepted),"of",len(filenames))
 
     if eoutput is not None:
-        file = open(eoutput, 'w')
-        np.savetxt(extracted, file, delimiter=' ')
-        file.close()
+        np.savetxt(eoutput, extracted, delimiter=' ')
 
     if coutput is not None:
         print(coutput , len(accepted))
