@@ -87,6 +87,11 @@ def read_numbers(filename):
     with open(filename,'r') as f:
          return np.asarray([int(x) for x in f])
 
+def create_parent_directory(filename):
+    dirname=os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+
 imageio.plugins.freeimage.download()
 filenames = []
 divide = True
@@ -104,6 +109,7 @@ prein = None
 eoutput = None
 output = None
 doutput = None
+soutput = None
 extract = []
 
 i = 1
@@ -178,6 +184,9 @@ while i <len(sys.argv):
     elif arg == "preout":
         preout = sys.argv[i + 1]
         i += 1
+    elif arg == "soutput":
+        soutput = sys.argv[i + 1]
+        i += 1
     elif arg == "prein":
         prein = sys.argv[i + 1]
         i += 1
@@ -220,10 +229,12 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
     print("accepted",len(accepted),"of",len(filenames))
 
     if eoutput is not None:
+        create_parent_directory(eoutput)
         np.savetxt(eoutput, extracted, delimiter=' ')
 
     if coutput is not None:
         print(coutput , len(accepted))
+        create_parent_directory(coutput)
         file = open(coutput,"w")
         file.write(str(len(accepted)))
         file.close()
@@ -232,6 +243,7 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
         print(noutput , len(accepted))
         file = open(noutput,"w")
         for file in accepted:
+            create_parent_directory(os.path.splitext(file)[0])
             file.write(os.path.splitext(file)[0])
         file.close()
 
@@ -242,14 +254,23 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
             indices.append(int(os.path.splitext(ntpath.basename(afile))[0]))
         indices = np.asarray(indices) + 1
         indices=np.sort(indices)
-        file = open(moutput,"w")
-        for idx in indices:
-            file.write(str(idx) + '\n')
-        file.close()
+        create_parent_directory(moutput)
+        np.savetxt(moutput, idx, delimiter='\n')
+        #file = open(moutput,"w")
+        #for idx in indices:
+        #    file.write(str(idx) + '\n')
+        #file.close()
 
     #image = np.where(np.isnan(image), np.zeros_like(image), image)
     if doutput is not None:
         divided = image / len(accepted)
+        create_parent_directory(doutput)
         imageio.imwrite(doutput,divided.astype(np.float32))
     if output is not None:
+        create_parent_directory(output)
         imageio.imwrite(output,image.astype(np.float32))
+    if soutput is not None:
+        create_parent_directory(soutput)
+        file = open(soutput, "w")
+        file.write (str(np.sum(image)))
+        file.close()
