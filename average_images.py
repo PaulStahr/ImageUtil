@@ -148,7 +148,7 @@ while i <len(sys.argv):
         suffix = sys.argv[i + 3]
         i += 3
         filenames = np.core.defchararray.add(np.core.defchararray.add(prefix,(read_numbers(framelist)-1).astype(str)),suffix)
-     elif arg == "input":
+    elif arg == "input":
         for arg in sys.argv[i + 1:]:
             filenames = filenames + glob.glob(arg)
         filenames.sort()
