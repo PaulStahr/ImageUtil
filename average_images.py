@@ -12,7 +12,7 @@ import multiprocessing
 from joblib import Parallel, delayed
 from numpy import linalg as LA
 from enum import Enum
-import OpenEXR, array, Imath
+#import OpenEXR, array, Imath
 
 class Mode(Enum):
     AVERAGE = 0
@@ -135,19 +135,20 @@ while i <len(sys.argv):
         else:
             raise Exception("Value ",value," not known")
         i += 1
-    elif arg == "mframelist":
+    elif arg == "framelist" or arg == "mframelist":
         framelist = sys.argv[i + 1]
+        numbers = None
+        if framelist == "stdin":
+            numbers = np.asarray([int(line) for line in sys.stdin],dtype=int)
+        else:
+            numbers = read_numbers(framelist)
+        if arg == "mframelist":
+            numbers = numbers - 1
         prefix = sys.argv[i + 2]
         suffix = sys.argv[i + 3]
         i += 3
         filenames = np.core.defchararray.add(np.core.defchararray.add(prefix,(read_numbers(framelist)-1).astype(str)),suffix)
-    elif arg == "framelist":
-        framelist = sys.argv[i + 1]
-        prefix = sys.argv[i + 2]
-        suffix = sys.argv[i + 3]
-        i += 3
-        filenames = np.core.defchararray.add(np.core.defchararray.add(prefix,read_numbers(framelist).astype(str)),suffix)
-    elif arg == "input":
+     elif arg == "input":
         for arg in sys.argv[i + 1:]:
             filenames = filenames + glob.glob(arg)
         filenames.sort()
@@ -230,7 +231,7 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
 
     if eoutput is not None:
         create_parent_directory(eoutput)
-        np.savetxt(eoutput, extracted, delimiter=' ')
+        np.savetxt(eoutput, extracted, delimiter=' ',fmt='%i')
 
     if coutput is not None:
         print(coutput , len(accepted))
@@ -255,12 +256,7 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
         indices = np.asarray(indices) + 1
         indices=np.sort(indices)
         create_parent_directory(moutput)
-        np.savetxt(moutput, idx, delimiter='\n')
-        #file = open(moutput,"w")
-        #for idx in indices:
-        #    file.write(str(idx) + '\n')
-        #file.close()
-
+        np.savetxt(moutput, indices, delimiter='\n',fmt='%i')
     #image = np.where(np.isnan(image), np.zeros_like(image), image)
     if doutput is not None:
         divided = image / len(accepted)
