@@ -258,15 +258,16 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
         create_parent_directory(moutput)
         np.savetxt(moutput, indices, delimiter='\n',fmt='%i')
     #image = np.where(np.isnan(image), np.zeros_like(image), image)
-    if doutput is not None:
-        divided = image / len(accepted)
-        create_parent_directory(doutput)
-        imageio.imwrite(doutput,divided.astype(np.float32))
-    if output is not None:
-        create_parent_directory(output)
-        imageio.imwrite(output,image.astype(np.float32))
-    if soutput is not None:
-        create_parent_directory(soutput)
-        file = open(soutput, "w")
-        file.write (str(np.sum(image)))
-        file.close()
+    if image is not None:
+        if doutput is not None:
+            divided = image / len(accepted)
+            create_parent_directory(doutput)
+            imageio.imwrite(doutput,divided.astype(np.float32))
+        if output is not None:
+            create_parent_directory(output)
+            imageio.imwrite(output,image.astype(np.float32))
+        if soutput is not None:
+            create_parent_directory(soutput)
+            file = open(soutput, "w")
+            file.write (str(np.sum(image)))
+            file.close()
