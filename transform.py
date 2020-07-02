@@ -5,6 +5,7 @@ from enum import Enum
 import multiprocessing
 import imageio
 import os
+from matplotlib import cm
 
 class CmdMode(Enum):
     UNDEF = 0
@@ -20,11 +21,10 @@ def process_frame(filenames, outputs, logging):
             img = imageio.imread(filename)
             #print("images", len(img), 'out', outputs)
             for output in outputs:
-                out = eval(output[0], {'np':np, 'img':img})
-                print("shape", out.shape)
-                #print(out)
-                imageio.imwrite(output[1] + '/' + os.path.basename(filename), out)
-    
+                out = eval(output[0], {'np':np, 'img':img, 'cm':cm})
+                try:
+                    imageio.imwrite(output[1] + '/' + os.path.splitext(os.path.basename(filename))[0] + output[2], out)
+                except: pass
     
 def process_frames(inputs, outputs, logging):
     inputs = np.asarray(inputs)
@@ -40,19 +40,26 @@ cmdMode = CmdMode.UNDEF
 logging = 0
 while i < len(sys.argv):
     arg = sys.argv[i]
-    if (arg == "--input"):
+    if arg == "--input":
         cmdMode = CmdMode.INPUT
         i += 1
-    elif(arg == "--output"):
-        outputs.append((compile(sys.argv[i + 1], '<string>', 'eval'),sys.argv[i + 2]))
+    elif arg == "--output":
+        outputs.append((compile(sys.argv[i + 1], '<string>', 'eval'),sys.argv[i + 2],sys.argv[i+3]))
         cmdMode = CmdMode.UNDEF
-        i += 3
+        i += 4
+    elif arg == "--cmap":
+        cmdMode = CmdMode.UNDEF
     elif cmdMode == CmdMode.INPUT:
         inputs.append(glob.glob(arg))
         i += 1
+    elif arg == "--help":
+        print("--input <input files>")
+        print("--output <formular> <folder> <filetype>")
     else:
         raise Exception('Invalid input', arg)
 for i in range(len(inputs)):
     inputs[i].sort()
 #print("inputs", inputs)
 process_frames(inputs, outputs, logging)
+
+#
