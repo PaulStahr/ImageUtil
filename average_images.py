@@ -244,7 +244,7 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
         print(noutput , len(accepted))
         file = open(noutput,"w")
         for file in accepted:
-            create_parent_directory(os.path.splitext(file)[0])
+            create_parent_directory(file)
             file.write(os.path.splitext(file)[0])
         file.close()
 
@@ -254,7 +254,7 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
         for afile in accepted:
             indices.append(int(os.path.splitext(ntpath.basename(afile))[0]))
         indices = np.asarray(indices) + 1
-        indices=np.sort(indices)
+        indices=np.sort(indices)    
         create_parent_directory(moutput)
         np.savetxt(moutput, indices, delimiter='\n',fmt='%i')
     #image = np.where(np.isnan(image), np.zeros_like(image), image)

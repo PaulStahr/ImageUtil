@@ -14,6 +14,11 @@ class CmdMode(Enum):
     OUTPUT = 3
     FUNCTION = 4
 
+def create_parent_directory(filename):
+    dirname=os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+
 def process_frame(filenames, scalfilenames, scalarfolder, outputs, logging):
     if scalfilenames is not None and len(scalfilenames) != len(filenames):
         raise Exception("Different lengths in filename and scalfilenames", len(scalfilenames), len(filenames))
@@ -36,6 +41,9 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, logging):
                 out = eval(output[0], args)
                 try:
                     imageio.imwrite(output[1] + '/' + base + output[2], out)
+                    filename = output[1] + '/' + base + output[2]
+                    create_parent_directory(filename)
+                    imageio.imwrite(filename, out)
                 except Exception as ex:
                     print("Can't write image",ex)
 
