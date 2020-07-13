@@ -13,6 +13,12 @@ class CmdMode(Enum):
     SCALARINPUT = 2
     OUTPUT = 3
     FUNCTION = 4
+    
+    
+def create_parent_directory(filename):
+    dirname=os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
 
 def process_frame(filenames, scalfilenames, outputs, logging):
     #print(filenames)
@@ -28,7 +34,9 @@ def process_frame(filenames, scalfilenames, outputs, logging):
             for output in outputs:
                 out = eval(output[0], args)
                 try:
-                    imageio.imwrite(output[1] + '/' + os.path.splitext(os.path.basename(filename))[0] + output[2], out)
+                    filename = output[1] + '/' + os.path.splitext(os.path.basename(filename))[0] + output[2]
+                    create_parent_directory(filename)
+                    imageio.imwrite(filename, out)
                 except Exception as ex:
                     print("Can't write image",ex)
 
