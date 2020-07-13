@@ -40,7 +40,6 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, logging):
             for output in outputs:
                 out = eval(output[0], args)
                 try:
-                    imageio.imwrite(output[1] + '/' + base + output[2], out)
                     filename = output[1] + '/' + base + output[2]
                     create_parent_directory(filename)
                     imageio.imwrite(filename, out)
