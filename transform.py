@@ -22,8 +22,8 @@ def create_parent_directory(filename):
 #def set_resolution(colormap, N):
 #    colors=cm.gnuplot(np.linspace(0,1,cm.gnuplot.N))
 #    {'red':np.asarray((np.linspace(0,1,len(colors)),colors[:,0],colors[:,0])).T,
-    'green':np.asarray((np.linspace(0,1,len(colors)),colors[:,0],colors[:,0])).T,
-    'blue':np.asarray((np.linspace(0,1,len(colors)),colors[:,0],colors[:,0])).T}
+#    'green':np.asarray((np.linspace(0,1,len(colors)),colors[:,0],colors[:,0])).T,
+#    'blue':np.asarray((np.linspace(0,1,len(colors)),colors[:,0],colors[:,0])).T}
 #    return cm.LinearSegmentedColormap(colom.ap.name, colors, N)
 
 class Opts():
