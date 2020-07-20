@@ -14,6 +14,11 @@ from numpy import linalg as LA
 from enum import Enum
 #import OpenEXR, array, Imath
 
+class Opts():
+    def __init__(self):
+        self.extract = []
+        self.sextract = []
+
 class Mode(Enum):
     AVERAGE = 0
     AVERAGE_NORMALIZED = 1
@@ -27,7 +32,7 @@ def get_index(arg,name):
     except:
         return -1
 
-def process_frame(filenames, mode, criteria, expression, extract, offset, logging):
+def process_frame(filenames, mode, criteria, expression, opt, offset, logging):
     if len(filenames) == 0:
         return None
     if logging < 0:
@@ -63,13 +68,16 @@ def process_frame(filenames, mode, criteria, expression, extract, offset, loggin
             added += to_add
         else:
             added = to_add
-        extracted.append(to_add[extract])
+        for sext in opt.sextract:
+            extracted.append(eval(sext))
+        if len(opt.sextract) == 0:
+            extracted.append(to_add[opt.extract])
     return (added, accepted, extracted)
 
-def process_frames(filenames, mode, criteria, expression, extract, offset, logging):
+def process_frames(filenames, mode, criteria, expression, opt, offset, logging):
     num_cores = multiprocessing.cpu_count()
     factor = (len(filenames) + num_cores - 1) // num_cores
-    image_list=Parallel(n_jobs=num_cores)(delayed(process_frame)(filenames[i * factor:min((i + 1) * factor,len(filenames))], mode, criteria, expression, extract, offset, logging) for i in range(num_cores))
+    image_list=Parallel(n_jobs=num_cores)(delayed(process_frame)(filenames[i * factor:min((i + 1) * factor,len(filenames))], mode, criteria, expression, opt, offset, logging) for i in range(num_cores))
     accepted = []
     extracted = []
     added = None
@@ -110,7 +118,7 @@ eoutput = None
 output = None
 doutput = None
 soutput = None
-extract = []
+opt = Opts()
 
 i = 1
 while i <len(sys.argv):
@@ -192,16 +200,17 @@ while i <len(sys.argv):
         prein = sys.argv[i + 1]
         i += 1
     elif arg == "extract":
-        extract.append(np.fromstring(sys.argv[i + 1], sep=',', dtype=int))
+        opt.extract.append(np.fromstring(sys.argv[i + 1], sep=',', dtype=int))
+        i += 1
+    elif arg == "sextract":
+        opt.sextract.append(compile(sys.argv[i + 1], '<string>', 'eval'))
         i += 1
     else:
         raise Exception("Unknown argument " + arg)
     i += 1
-print("extract:",extract)
-extract=(*np.asarray(extract).T,)
-if len(extract) == 0:
-    extract = ([],[])
-print("extract:",extract)
+opt.extract=(*np.asarray(opt.extract).T,)
+if len(opt.extract) == 0:
+    opt.extract = ([],[])
 if logging < 1:
     print(sys.argv)
 if logging < 0:
@@ -210,7 +219,7 @@ preimage = None
 if prein is not None:
     preimage = imageio.imread(prein)
 elif premode is not None:
-    preimage, accepted, extracted=process_frames(filenames, premode, criteria, expression, extract, None, logging)
+    preimage, accepted, extracted=process_frames(filenames, premode, criteria, expression, opt, None, logging)
     preimage /= len(accepted)
     #TODO: maybe normalize again for some measures?
     if show:
@@ -222,7 +231,7 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
     image = None
     if mode is not None:
         print("second pass")
-        image, accepted, extracted = process_frames(filenames, mode, criteria, expression, extract, preimage, logging)
+        image, accepted, extracted = process_frames(filenames, mode, criteria, expression, opt, preimage, logging)
         if mode == Mode.VARIANCE_NORMALIZED or mode == Mode.AVERAGE_NORMALIZED:
             image = LA.norm(image, axis=2)
     else:
@@ -230,8 +239,11 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
     print("accepted",len(accepted),"of",len(filenames))
 
     if eoutput is not None:
-        create_parent_directory(eoutput)
-        np.savetxt(eoutput, extracted, delimiter=' ',fmt='%f')
+        if eoutput == "stdout":
+            print(extracted)
+        else:
+            create_parent_directory(eoutput)
+            np.savetxt(eoutput, extracted, delimiter=' ',fmt='%f')
 
     if coutput is not None:
         print(coutput , len(accepted))
