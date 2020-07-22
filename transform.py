@@ -31,6 +31,12 @@ class Opts():
         self.low = 0
         self.high = 1
 
+def highres(colormap, data):
+    dataf=(data*colmap.N)
+    datai=dataf.astype(int)
+    mod=(dataf-datai)[:,:,None]
+    return colmap(datai)*(1-mod)+colmap(datai+1)*mod
+
 def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging):
     if scalfilenames is not None and len(scalfilenames) != len(filenames):
         raise Exception("Different lengths in filename and scalfilenames", len(scalfilenames), len(filenames))
@@ -42,7 +48,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging
             print(filename)
             base = os.path.splitext(os.path.basename(filename))[0]
             img = imageio.imread(filename)
-            args = {'np':np, 'img':img, 'cm':cm, 'opts':opts}
+            args = {'np':np, 'img':img, 'cm':cm, 'highres':highres, 'opts':opts}
             if scalarfolder is not None:
                 with open(scalarfolder + '/' + base + ".txt") as file:
                     args['scal'] = float(file.readline())
@@ -111,7 +117,6 @@ while i < len(sys.argv):
     else:
         raise Exception('Invalid input', arg)
     i += 1
-cm.gnuplot.N=1024
 if len(scalarinputs) == 0:
     for i in range(len(inputs)):
         inputs[i].sort()
