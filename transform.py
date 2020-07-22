@@ -31,7 +31,7 @@ class Opts():
         self.low = 0
         self.high = 1
 
-def highres(colormap, data):
+def highres(colmap, data):
     dataf=(data*colmap.N)
     datai=dataf.astype(int)
     mod=(dataf-datai)[:,:,None]
