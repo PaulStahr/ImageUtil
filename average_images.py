@@ -82,9 +82,13 @@ def process_frame(filenames, mode, criteria, expression, opt, offset, logging):
 
 def process_frames(filenames, mode, criteria, expression, opt, offset, logging):
     num_cores = multiprocessing.cpu_count()
-    factor = (len(filenames) + num_cores - 1) // num_cores
-    image_list = Parallel(n_jobs=num_cores)(
-        delayed(process_frame)(filenames[i * factor:min((i + 1) * factor, len(filenames))], mode, criteria, expression,
+    image_list = None
+    if len(filenames) < 2:
+        image_list = [process_frame(filenames, mode, criteria, expression, opt, offset, logging)]
+    else:
+        factor = (len(filenames) + num_cores - 1) // num_cores
+        image_list = Parallel(n_jobs=num_cores)(
+            delayed(process_frame)(filenames[i * factor:min((i + 1) * factor, len(filenames))], mode, criteria, expression,
                                opt, offset, logging) for i in range(num_cores))
     accepted = []
     extracted = []
