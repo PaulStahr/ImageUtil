@@ -15,6 +15,17 @@ from matplotlib import cm
 import pyexr
 
 
+def read_numbers(filename):
+    with open(filename, 'r') as f:
+        return np.asarray([int(x) for x in f])
+
+
+def create_parent_directory(filename):
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+
+
 class ProcessingOptions:
     def __init__(self):
         self.imagefolder = ""
@@ -59,26 +70,26 @@ def process_frame(imagefile, flowfile, po):
             img2 = cv2.arrowedLine(img2, startpoint, endpoint, (255, 255, 255), 2)
     if po.imageout is not None:
         filename = po.imageout + "/" + basename
-        util.create_parent_directory(filename)
+        create_parent_directory(filename)
         cv2.imwrite(filename, img)
     if po.arrowout is not None:
         filename = po.arrowout + "/" + name + ".png"
-        util.create_parent_directory(filename)
+        create_parent_directory(filename)
         cv2.imwrite(filename, img2)
     if po.tableout is not None:
         filename = po.tableout + "/" + name + ".csv"
-        util.create_parent_directory(filename)
+        create_parent_directory(filename)
         np.savetxt(filename, arrows)
     if po.absout2 is not None:
         # filename = po.absout2 + "/" + name + ".tif"
         filename = po.absout2 + "/" + name + ".exr"
-        util.create_parent_directory(filename)
+        create_parent_directory(filename)
         pyexr.write(filename, np.sqrt(np.sum(flow[:, :, 0:2] ** 2, axis=2)))
         # imageio.imwrite(filename, np.sqrt(np.sum(flow[:, :, 0:2] ** 2, axis=2)))
     if po.absout3 is not None:
         # filename = po.absout3 + "/" + name + ".tif"
         filename = po.absout3 + "/" + name + ".exr"
-        util.create_parent_directory(filename)
+        create_parent_directory(filename)
         pyexr.write(filename, np.sqrt(np.sum(flow ** 2, axis=2)))
         # imageio.imwrite(filename, np.sqrt(np.sum(flow ** 2, axis=2)))
     if po.cabsout2 is not None:
@@ -91,7 +102,7 @@ def process_frame(imagefile, flowfile, po):
         # print(cm.gnuplot(abs2).astype(np.uint16).shape)
         # print(np.max(np.max(cm.gnuplot(abs2)[:,:,0:3], axis=0),axis=0))
         filename = po.cabsout2 + "/" + name + ".png"
-        util.create_parent_directory(filename)
+        create_parent_directory(filename)
         colmap = cm.gnuplot
 
         # Workaround to create plots with higher color-resolution
@@ -118,7 +129,7 @@ while i < len(sys.argv):
         flowprefix = sys.argv[i + 4]
         flowsuffix = sys.argv[i + 5]
         i += 5
-        numbers = util.read_numbers(framelist)
+        numbers = read_numbers(framelist)
         if arg == "mframelist":
             numbers -= 1
         imagenames = np.core.defchararray.add(np.core.defchararray.add(imgprefix, numbers.astype(str)), imgsuffix)
