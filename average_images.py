@@ -12,6 +12,7 @@ import multiprocessing
 from joblib import Parallel, delayed
 from numpy import linalg as LA
 from enum import Enum
+import pyexr
 
 
 # import OpenEXR, array, Imath
@@ -242,7 +243,10 @@ elif premode is not None:
         plt.imshow(preimage)
         plt.show()
     if preout is not None:
-        imageio.imwrite(preout, preimage.astype(np.float32))
+        if preout.endswith(".exr"):
+            pyexr.write(preout, preimage.astype(np.float32))
+        else:
+            imageio.imwrite(preout, preimage.astype(np.float32))
 if eoutput is not None or coutput is not None or noutput is not None or moutput is not None or output is not None or doutput is not None:
     image = None
     if mode is not None:
@@ -290,10 +294,16 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
         if doutput is not None:
             divided = image / len(accepted)
             create_parent_directory(doutput)
-            imageio.imwrite(doutput, divided.astype(np.float32))
+            if doutput.endswith(".exr"):
+                pyexr.write(doutput, divided.astype(np.float32))
+            else:
+                imageio.imwrite(doutput, divided.astype(np.float32))
         if output is not None:
             create_parent_directory(output)
-            imageio.imwrite(output, image.astype(np.float32))
+            if output.endswith(".exr"):
+                pyexr.write(output, image.astype(np.float32))
+            else:
+                imageio.imwrite(output, image.astype(np.float32))
         if soutput is not None:
             create_parent_directory(soutput)
             file = open(soutput, "w")
