@@ -10,7 +10,6 @@ import ntpath
 from PIL import Image, ImageDraw
 import multiprocessing
 from joblib import Parallel, delayed
-import util
 from matplotlib import cm
 import pyexr
 
