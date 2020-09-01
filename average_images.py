@@ -127,7 +127,7 @@ def write_fimage(filename, img):
             out.writePixels({'Y': img})
             out.close()
         else:
-            pyexr.write(preout, img)
+            pyexr.write(filename, img)
     else:
         imageio.imwrite(filename, img)
 
