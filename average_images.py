@@ -13,6 +13,8 @@ from joblib import Parallel, delayed
 from numpy import linalg as LA
 from enum import Enum
 import pyexr
+import OpenEXR
+import Imath
 
 
 # import OpenEXR, array, Imath
@@ -114,6 +116,20 @@ def create_parent_directory(filename):
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
+
+
+def write_fimage(filename, img):
+    if filename.endswith(".exr"):
+        if len(img.shape) == 2 or img.shape[2] == 1:
+            header = OpenEXR.Header(*img.shape[0:2])
+            header['channels'] = {'Y': Imath.Channel(Imath.PixelType(OpenEXR.FLOAT))}
+            out = OpenEXR.OutputFile(filename, header)
+            out.writePixels({'Y': img})
+            out.close()
+        else:
+            pyexr.write(preout, img)
+    else:
+        imageio.imwrite(filename, img)
 
 
 imageio.plugins.freeimage.download()
@@ -243,10 +259,7 @@ elif premode is not None:
         plt.imshow(preimage)
         plt.show()
     if preout is not None:
-        if preout.endswith(".exr"):
-            pyexr.write(preout, preimage.astype(np.float32))
-        else:
-            imageio.imwrite(preout, preimage.astype(np.float32))
+        write_fimage(preout, preimage.astype(np.float32))
 if eoutput is not None or coutput is not None or noutput is not None or moutput is not None or output is not None or doutput is not None:
     image = None
     if mode is not None:
@@ -294,16 +307,10 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
         if doutput is not None:
             divided = image / len(accepted)
             create_parent_directory(doutput)
-            if doutput.endswith(".exr"):
-                pyexr.write(doutput, divided.astype(np.float32))
-            else:
-                imageio.imwrite(doutput, divided.astype(np.float32))
+            write_fimage(doutput, divided.astype(np.float32))
         if output is not None:
             create_parent_directory(output)
-            if output.endswith(".exr"):
-                pyexr.write(output, image.astype(np.float32))
-            else:
-                imageio.imwrite(output, image.astype(np.float32))
+            write_fimage(output, image.astype(np.float32))
         if soutput is not None:
             create_parent_directory(soutput)
             file = open(soutput, "w")
