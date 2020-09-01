@@ -49,7 +49,11 @@ def process_frame(filenames, mode, criteria, expression, opt, offset, logging):
     accepted = []
     extracted = []
     for file in filenames:
-        img = imageio.imread(file)
+        img = None
+        if file.endswith(".exr"):
+            img = pyexr.read(file)
+        else:
+            img = imageio.imread(file)
         if criteria is not None:
             if not eval(criteria):
                 continue
