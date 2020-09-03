@@ -54,6 +54,8 @@ def process_frame(filenames, mode, criteria, expression, opt, offset, logging):
             img = pyexr.read(file)
         else:
             img = imageio.imread(file)
+        if len(img.shape) == 2:
+            img = img[..., None]
         if criteria is not None:
             if not eval(criteria):
                 continue
