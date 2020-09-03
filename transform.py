@@ -6,6 +6,8 @@ import multiprocessing
 import imageio
 import os
 from matplotlib import cm
+import pyexr
+
 
 class CmdMode(Enum):
     UNDEF = 0
@@ -14,12 +16,14 @@ class CmdMode(Enum):
     OUTPUT = 3
     FUNCTION = 4
 
+
 def create_parent_directory(filename):
-    dirname=os.path.dirname(filename)
+    dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
 
-#def set_resolution(colormap, N):
+
+# def set_resolution(colormap, N):
 #    colors=cm.gnuplot(np.linspace(0,1,cm.gnuplot.N))
 #    {'red':np.asarray((np.linspace(0,1,len(colors)),colors[:,0],colors[:,0])).T,
 #    'green':np.asarray((np.linspace(0,1,len(colors)),colors[:,0],colors[:,0])).T,
@@ -31,11 +35,13 @@ class Opts():
         self.low = 0
         self.high = 1
 
+
 def highres(colmap, data):
-    dataf=(data*colmap.N)
-    datai=dataf.astype(int)
-    mod=(dataf-datai)[:,:,None]
-    return colmap(datai)*(1-mod)+colmap(datai+1)*mod
+    dataf = (data * colmap.N)
+    datai = dataf.astype(int)
+    mod = (dataf - datai)[:, :, None]
+    return colmap(datai) * (1 - mod) + colmap(datai + 1) * mod
+
 
 def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging):
     if scalfilenames is not None and len(scalfilenames) != len(filenames):
@@ -47,8 +53,14 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging
             filename = filenames[i][j]
             print(filename)
             base = os.path.splitext(os.path.basename(filename))[0]
-            img = imageio.imread(filename)
-            args = {'np':np, 'img':img, 'cm':cm, 'highres':highres, 'opts':opts}
+            img = None
+            if file.endswith(".exr"):
+                img = pyexr.read(file)
+            else:
+                img = imageio.imread(file)
+            if len(img.shape) == 2:
+                img = img[..., None]
+            args = {'np': np, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts}
             if scalarfolder is not None:
                 with open(scalarfolder + '/' + base + ".txt") as file:
                     args['scal'] = float(file.readline())
@@ -62,13 +74,19 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging
                     create_parent_directory(filename)
                     imageio.imwrite(filename, out)
                 except Exception as ex:
-                    print("Can't write image",ex)
+                    print("Can't write image", ex)
+
 
 def process_frames(inputs, scalarinputs, scalarfolder, outputs, opts, logging):
     njobs = len(inputs)
     num_cores = multiprocessing.cpu_count()
     factor = (njobs + num_cores - 1)
-    Parallel(n_jobs=num_cores)(delayed(process_frame)(inputs[i * factor:min((i + 1) * factor,njobs)], None if scalarinputs is None else scalarinputs[i * factor:min((i + 1) * factor,njobs)], scalarfolder, outputs, opts, logging) for i in range(num_cores))
+    Parallel(n_jobs=num_cores)(delayed(process_frame)(inputs[i * factor:min((i + 1) * factor, njobs)],
+                                                      None if scalarinputs is None else scalarinputs[
+                                                                                        i * factor:min((i + 1) * factor,
+                                                                                                       njobs)],
+                                                      scalarfolder, outputs, opts, logging) for i in range(num_cores))
+
 
 inputs = []
 scalarinputs = []
@@ -86,11 +104,11 @@ while i < len(sys.argv):
     elif arg == "--scalarinput":
         cmdMode = CmdMode.SCALARINPUT
     elif arg == "--output":
-        outputs.append((compile(sys.argv[i + 1], '<string>', 'eval'),sys.argv[i + 2],sys.argv[i+3]))
+        outputs.append((compile(sys.argv[i + 1], '<string>', 'eval'), sys.argv[i + 2], sys.argv[i + 3]))
         cmdMode = CmdMode.UNDEF
         i += 3
     elif arg == "--alphamask":
-        opts.alphamask=imageio.imread(sys.argv[i + 1])
+        opts.alphamask = imageio.imread(sys.argv[i + 1])
         i += 1
     elif arg == "--cmap":
         cmdMode = CmdMode.UNDEF
@@ -126,8 +144,8 @@ else:
         scalarinputs[i].sort()
 
 if scalebarout is not None:
-    colormap = eval(compile(scalebarout[0], '<string>', 'eval'),{'cm':cm})
-    result = (np.asarray([colormap(np.linspace(0,1,colormap.N))])*0xFF).astype(np.uint8)
+    colormap = eval(compile(scalebarout[0], '<string>', 'eval'), {'cm': cm})
+    result = (np.asarray([colormap(np.linspace(0, 1, colormap.N))]) * 0xFF).astype(np.uint8)
     print(result.shape)
     imageio.imwrite(scalebarout[1], result)
 process_frames(inputs, None if len(scalarinputs) == 0 else scalarinputs, scalarfolder, outputs, opts, logging)
