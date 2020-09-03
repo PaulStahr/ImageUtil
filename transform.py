@@ -54,10 +54,10 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging
             print(filename)
             base = os.path.splitext(os.path.basename(filename))[0]
             img = None
-            if file.endswith(".exr"):
-                img = pyexr.read(file)
+            if filename.endswith(".exr"):
+                img = pyexr.read(filename)
             else:
-                img = imageio.imread(file)
+                img = imageio.imread(filename)
             if len(img.shape) == 2:
                 img = img[..., None]
             args = {'np': np, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts}
