@@ -1,13 +1,10 @@
-import cv2
 import numpy as np
 import imageio
 import os
 import matplotlib.pyplot as plt
-import glob, sys
-from collections import deque
-import csv
+import glob
+import sys
 import ntpath
-from PIL import Image, ImageDraw
 import multiprocessing
 from joblib import Parallel, delayed
 from numpy import linalg as LA
@@ -17,9 +14,7 @@ import OpenEXR
 import Imath
 
 
-# import OpenEXR, array, Imath
-
-class Opts():
+class Opts:
     def __init__(self):
         self.extract = []
         self.sextract = []
@@ -40,6 +35,17 @@ def get_index(arg, name):
         return -1
 
 
+def read_image(file):
+    img = None
+    if file.endswith(".exr"):
+        img = pyexr.read(file)
+    else:
+        img = imageio.imread(file)
+    if len(img.shape) == 2:
+        img = img[..., None]
+    return img
+
+
 def process_frame(filenames, mode, criteria, expression, opt, offset, logging):
     if len(filenames) == 0:
         return None
@@ -49,13 +55,7 @@ def process_frame(filenames, mode, criteria, expression, opt, offset, logging):
     accepted = []
     extracted = []
     for file in filenames:
-        img = None
-        if file.endswith(".exr"):
-            img = pyexr.read(file)
-        else:
-            img = imageio.imread(file)
-        if len(img.shape) == 2:
-            img = img[..., None]
+        img = read_image(file)
         if criteria is not None:
             if not eval(criteria):
                 continue
@@ -86,7 +86,7 @@ def process_frame(filenames, mode, criteria, expression, opt, offset, logging):
             extracted.append(eval(sext))
         if len(opt.sextract) == 0:
             extracted.append(to_add[opt.extract])
-    return (added, accepted, extracted)
+    return added, accepted, extracted
 
 
 def process_frames(filenames, mode, criteria, expression, opt, offset, logging):
@@ -256,7 +256,7 @@ if logging < 0:
     print(filenames)
 preimage = None
 if prein is not None:
-    preimage = imageio.imread(prein)
+    preimage = read_image(prein)
 elif premode is not None:
     preimage, accepted, extracted = process_frames(filenames, premode, criteria, expression, opt, None, logging)
     preimage /= len(accepted)
