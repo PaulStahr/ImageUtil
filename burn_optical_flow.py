@@ -13,7 +13,6 @@ from joblib import Parallel, delayed
 from matplotlib import cm
 import pyexr
 
-
 def read_numbers(filename):
     with open(filename, 'r') as f:
         return np.asarray([int(x) for x in f])
@@ -40,18 +39,29 @@ class ProcessingOptions:
         self.transform = np.asarray([[1, 0, 0], [0, 1, 0]])
 
 
+def read_image(file):
+    img = None
+    if file.endswith(".exr"):
+        img = pyexr.read(file)
+    else:
+        img = imageio.imread(file)
+    if len(img.shape) == 2:
+        img = img[..., None]
+    return img
+
+
 def process_frame(imagefile, flowfile, po):
     basename = ntpath.basename(imagefile)
     img = None
     if imagefile is not None:
-        img = imageio.imread(imagefile)
+        img = read_image(imagefile)
     name = ntpath.splitext(basename)[0];
-    flow = imageio.imread(flowfile)
+    flow = read_image(flowfile)
     img2 = np.zeros((*flow.shape[0:2], 3), dtype=np.uint8)
     cv2.circle(img2, (img2.shape[1] // 2, img2.shape[0] // 2), img2.shape[0] // 2, (255, 255, 255))
     scalar = np.asarray(img2.shape, dtype=float)[0:2] / np.asarray((po.rows, po.rows), dtype=float)
     if not np.isfinite(flow).all():
-        raise ("error \"" + flowfile + "\" contains illegal values")
+        raise Exception("error \"" + flowfile + "\" contains illegal values")
     img2[:, :, 0] = (flow[:, :, 0] ** 2 + flow[:, :, 1] ** 2 < 0.1) * 255
     img2[:, :, 1] = (flow[:, :, 0] ** 2 + flow[:, :, 1] ** 2 < 0.01) * 255
     arrows = np.zeros((po.rows * po.rows, 4))
