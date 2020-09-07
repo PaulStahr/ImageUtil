@@ -78,7 +78,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging
             filename = filenames[i][j]
             print(filename)
             base = os.path.splitext(os.path.basename(filename))[0]
-            img = read_image(filname)
+            img = read_image(filename)
             args = {'np': np, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts}
             if scalarfolder is not None:
                 with open(scalarfolder + '/' + base + ".txt") as file:
