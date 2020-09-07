@@ -43,6 +43,31 @@ def highres(colmap, data):
     return colmap(datai) * (1 - mod) + colmap(datai + 1) * mod
 
 
+def read_image(file):
+    img = None
+    if file.endswith(".exr"):
+        img = pyexr.read(file)
+    else:
+        img = imageio.imread(file)
+    if len(img.shape) == 2:
+        img = img[..., None]
+    return img
+
+
+def write_fimage(filename, img):
+    if filename.endswith(".exr"):
+        if len(img.shape) == 2 or img.shape[2] == 1:
+            header = OpenEXR.Header(*img.shape[0:2])
+            header['channels'] = {'Y': Imath.Channel(Imath.PixelType(OpenEXR.FLOAT))}
+            out = OpenEXR.OutputFile(filename, header)
+            out.writePixels({'Y': img})
+            out.close()
+        else:
+            pyexr.write(filename, img)
+    else:
+        imageio.imwrite(filename, img)
+
+
 def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging):
     if scalfilenames is not None and len(scalfilenames) != len(filenames):
         raise Exception("Different lengths in filename and scalfilenames", len(scalfilenames), len(filenames))
@@ -53,13 +78,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging
             filename = filenames[i][j]
             print(filename)
             base = os.path.splitext(os.path.basename(filename))[0]
-            img = None
-            if filename.endswith(".exr"):
-                img = pyexr.read(filename)
-            else:
-                img = imageio.imread(filename)
-            if len(img.shape) == 2:
-                img = img[..., None]
+            img = read_image(filname)
             args = {'np': np, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts}
             if scalarfolder is not None:
                 with open(scalarfolder + '/' + base + ".txt") as file:
@@ -72,7 +91,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging
                 try:
                     filename = output[1] + '/' + base + output[2]
                     create_parent_directory(filename)
-                    imageio.imwrite(filename, out)
+                    write_fimage(filename, out)
                 except Exception as ex:
                     print("Can't write image", ex)
 
@@ -147,5 +166,5 @@ if scalebarout is not None:
     colormap = eval(compile(scalebarout[0], '<string>', 'eval'), {'cm': cm})
     result = (np.asarray([colormap(np.linspace(0, 1, colormap.N))]) * 0xFF).astype(np.uint8)
     print(result.shape)
-    imageio.imwrite(scalebarout[1], result)
+    write_fimage(scalebarout[1], result)
 process_frames(inputs, None if len(scalarinputs) == 0 else scalarinputs, scalarfolder, outputs, opts, logging)
