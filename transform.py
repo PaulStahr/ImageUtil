@@ -166,5 +166,6 @@ if scalebarout is not None:
     colormap = eval(compile(scalebarout[0], '<string>', 'eval'), {'cm': cm})
     result = (np.asarray([colormap(np.linspace(0, 1, colormap.N))]) * 0xFF).astype(np.uint8)
     print(result.shape)
+    create_parent_directory(scalebarout)
     write_fimage(scalebarout[1], result)
 process_frames(inputs, None if len(scalarinputs) == 0 else scalarinputs, scalarfolder, outputs, opts, logging)
