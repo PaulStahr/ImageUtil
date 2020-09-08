@@ -14,9 +14,9 @@ cmap = cm.gnuplot
 norm = mpl.colors.Normalize(vmin=float(sys.argv[2]), vmax=float(sys.argv[3]))
 
 fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
-             cax=ax, orientation=('horizontal' if sys.argv[1] == 'h' else 'vertical'), label='Some Units')
+             cax=ax, orientation=('horizontal' if sys.argv[1] == 'h' else 'vertical'), label=sys.argv[4])
 
-if len(sys.argv) < 5:
+if len(sys.argv) < 6:
     plt.show()
 else:
-    plt.savefig(sys.argv[4])
+    plt.savefig(sys.argv[5])
