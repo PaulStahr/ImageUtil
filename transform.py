@@ -70,10 +70,10 @@ def write_fimage(filename, img):
 
 def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging):
     if scalfilenames is not None and len(scalfilenames) != len(filenames):
-        raise Exception("Different lengths in filename and scalfilenames", len(scalfilenames), len(filenames))
+        raise Exception("Different lengths in filename and scalfilenames", len(filenames), len(scalfilenames))
     for i in range(len(filenames)):
         if scalfilenames is not None and len(scalfilenames[i]) != len(filenames[i]):
-            raise Exception("Different lengths in filename and scalfilenames", len(scalfilenames[i]), len(filenames[i]))
+            raise Exception("Different lengths in filename and scalfilenames", len(filenames[i]), len(scalfilenames[i]))
         for j in range(len(filenames[i])):
             filename = filenames[i][j]
             print(filename)
