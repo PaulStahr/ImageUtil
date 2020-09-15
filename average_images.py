@@ -282,7 +282,7 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
             print(extracted)
         else:
             create_parent_directory(eoutput)
-            np.savetxt(eoutput, extracted, delimiter=' ', fmt='%f')
+            np.savetxt(eoutput, [x.flatten() for x in extracted], delimiter=' ', fmt='%f')
 
     if coutput is not None:
         print(coutput, len(accepted))
