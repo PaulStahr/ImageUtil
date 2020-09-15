@@ -98,6 +98,8 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging
 
 def process_frames(inputs, scalarinputs, scalarfolder, outputs, opts, logging):
     njobs = len(inputs)
+    if njobs == 0:
+        return
     num_cores = multiprocessing.cpu_count()
     factor = (njobs + num_cores - 1)
     Parallel(n_jobs=num_cores)(delayed(process_frame)(inputs[i * factor:min((i + 1) * factor, njobs)],
