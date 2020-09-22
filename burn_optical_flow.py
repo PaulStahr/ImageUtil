@@ -170,7 +170,7 @@ while i < len(sys.argv):
         po.cabsout2 = sys.argv[i + 1]
         i += 1
     elif arg == "cmax":
-        po.cmax = float(sys.argv[i + 1])
+        po.cmax = float(eval(sys.argv[i + 1]))
         i += 1
     elif arg == "absout3":
         po.absout3 = sys.argv[i + 1]
