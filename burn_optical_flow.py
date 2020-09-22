@@ -12,6 +12,8 @@ import multiprocessing
 from joblib import Parallel, delayed
 from matplotlib import cm
 import pyexr
+import OpenEXR
+import Imath
 
 def read_numbers(filename):
     with open(filename, 'r') as f:
@@ -125,7 +127,7 @@ def process_frame(imagefile, flowfile, po):
         filename = po.cabsout2 + "/" + name + ".png"
         create_parent_directory(filename)
         colmap = cm.gnuplot
-        plot = highres(colmap, data)
+        plot = highres(colmap, abs2)
         imageio.imwrite(filename, (plot[:, :, 0:3] * 0xFF).astype(np.uint8))
         # imageio.imwrite(filename, (plot[:,:,0:3]*0xFFFF).astype(np.uint16), 'PNG-FI')
 
