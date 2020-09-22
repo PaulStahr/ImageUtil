@@ -24,6 +24,13 @@ def create_parent_directory(filename):
         os.makedirs(dirname)
 
 
+def highres(colmap, data):
+    dataf = (data * colmap.N)
+    datai = dataf.astype(int)
+    mod = (dataf - datai)[:, :, None]
+    return colmap(datai) * (1 - mod) + colmap(datai + 1) * mod
+
+
 class ProcessingOptions:
     def __init__(self):
         self.imagefolder = ""
@@ -49,6 +56,18 @@ def read_image(file):
         img = img[..., None]
     return img
 
+def write_fimage(filename, img):
+    if filename.endswith(".exr"):
+        if len(img.shape) == 2 or img.shape[2] == 1:
+            header = OpenEXR.Header(*img.shape[0:2])
+            header['channels'] = {'Y': Imath.Channel(Imath.PixelType(OpenEXR.FLOAT))}
+            out = OpenEXR.OutputFile(filename, header)
+            out.writePixels({'Y': img})
+            out.close()
+        else:
+            pyexr.write(filename, img)
+    else:
+        imageio.imwrite(filename, img)
 
 def process_frame(imagefile, flowfile, po):
     basename = ntpath.basename(imagefile)
@@ -90,36 +109,23 @@ def process_frame(imagefile, flowfile, po):
         create_parent_directory(filename)
         np.savetxt(filename, arrows)
     if po.absout2 is not None:
-        # filename = po.absout2 + "/" + name + ".tif"
         filename = po.absout2 + "/" + name + ".exr"
         create_parent_directory(filename)
-        pyexr.write(filename, np.sqrt(np.sum(flow[:, :, 0:2] ** 2, axis=2)))
-        # imageio.imwrite(filename, np.sqrt(np.sum(flow[:, :, 0:2] ** 2, axis=2)))
+        write_fimage(filename, np.sqrt(np.sum(flow[:, :, 0:2] ** 2, axis=2)))
     if po.absout3 is not None:
-        # filename = po.absout3 + "/" + name + ".tif"
         filename = po.absout3 + "/" + name + ".exr"
         create_parent_directory(filename)
-        pyexr.write(filename, np.sqrt(np.sum(flow ** 2, axis=2)))
-        # imageio.imwrite(filename, np.sqrt(np.sum(flow ** 2, axis=2)))
+        write_fimage(filename, np.sqrt(np.sum(flow ** 2, axis=2)))
     if po.cabsout2 is not None:
-        # plt.imsave (po.cabsout2 + "/" + basename + ".png", np.sqrt(np.sum(flow[:,:,0:2] ** 2, axis=2)), cmap=cm.gnuplot)
         abs2 = np.sqrt(np.sum(flow[:, :, 0:2] ** 2, axis=2))
         if po.cmax is None:
             abs2 /= np.max(abs2)
         else:
             abs2 /= po.cmax
-        # print(cm.gnuplot(abs2).astype(np.uint16).shape)
-        # print(np.max(np.max(cm.gnuplot(abs2)[:,:,0:3], axis=0),axis=0))
         filename = po.cabsout2 + "/" + name + ".png"
         create_parent_directory(filename)
         colmap = cm.gnuplot
-
-        # Workaround to create plots with higher color-resolution
-        # colmap.N=512
-        abs2f = (abs2 * colmap.N)
-        abs2i = abs2f.astype(int)
-        mod = (abs2f - abs2i)[:, :, None]
-        plot = colmap(abs2i) * (1 - mod) + colmap(abs2i + 1) * mod
+        plot = highres(colmap, data)
         imageio.imwrite(filename, (plot[:, :, 0:3] * 0xFF).astype(np.uint8))
         # imageio.imwrite(filename, (plot[:,:,0:3]*0xFFFF).astype(np.uint16), 'PNG-FI')
 
