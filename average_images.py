@@ -110,7 +110,7 @@ def process_frames(filenames, mode, criteria, expression, opt, offset, logging):
                 added = img[0]
             accepted += img[1]
             extracted += img[2]
-    return (added, accepted, extracted)
+    return added, accepted, extracted
 
 
 def read_numbers(filename):
@@ -156,6 +156,7 @@ eoutput = None
 output = None
 doutput = None
 soutput = None
+fallback = None
 opt = Opts()
 
 i = 1
@@ -244,6 +245,9 @@ while i < len(sys.argv):
     elif arg == "sextract":
         opt.sextract.append(compile(sys.argv[i + 1], '<string>', 'eval'))
         i += 1
+    elif arg == "fallback":
+        fallback = (*[int(a) for a in sys.argv[i+1:i+4]], sys.argv[i + 4])
+        i += 4
     else:
         raise Exception("Unknown argument " + arg)
     i += 1
@@ -322,3 +326,9 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
             file = open(soutput, "w")
             file.write(str(np.sum(image)))
             file.close()
+    elif fallback is not None:
+        x, y, z = np.ogrid[0:fallback[0], 0:fallback[1], 0:fallback[2]]
+        img = eval(fallback[3])
+        if output is not None:
+            create_parent_directory(output)
+            write_fimage(output, img.astype(np.float32))
