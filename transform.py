@@ -1,4 +1,5 @@
-import glob, sys
+import glob
+import sys
 import numpy as np
 from joblib import Parallel, delayed
 from enum import Enum
@@ -7,6 +8,7 @@ import imageio
 import os
 from matplotlib import cm
 import pyexr
+import png
 
 
 class CmdMode(Enum):
@@ -64,6 +66,10 @@ def write_fimage(filename, img):
             out.close()
         else:
             pyexr.write(filename, img)
+    elif len(img.shape) == 3 and img.shape[2] == 2 and filename.endswith(".png"):
+        w = png.Writer(img.shape[1], img.shape[0], alpha=True, greyscale=True)
+        with open(filename, 'wb') as f:
+            w.write(f, img[:, :, 0:2].reshape((img.shape[0], -1)))
     else:
         imageio.imwrite(filename, img)
 
@@ -79,7 +85,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging
             print(filename)
             base = os.path.splitext(os.path.basename(filename))[0]
             img = read_image(filename)
-            args = {'np': np, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts}
+            args = {'np': np, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img)}
             if scalarfolder is not None:
                 with open(scalarfolder + '/' + base + ".txt") as file:
                     args['scal'] = float(file.readline())
