@@ -329,6 +329,9 @@ if eoutput is not None or coutput is not None or noutput is not None or moutput 
     elif fallback is not None:
         x, y, z = np.ogrid[0:fallback[0], 0:fallback[1], 0:fallback[2]]
         img = eval(fallback[3])
+        if doutput is not None:
+            create_parent_directory(doutput)
+            write_fimage(doutput, img.astype(np.float32))
         if output is not None:
             create_parent_directory(output)
             write_fimage(output, img.astype(np.float32))
