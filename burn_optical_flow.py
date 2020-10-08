@@ -46,6 +46,7 @@ class ProcessingOptions:
         self.cmax = None
         self.rows = 11
         self.transform = np.asarray([[1, 0, 0], [0, 1, 0]])
+        self.anchor_minimum = False
 
 
 def read_image(file):
@@ -83,12 +84,18 @@ def process_frame(imagefile, flowfile, po):
     scalar = np.asarray(img2.shape, dtype=float)[0:2] / np.asarray((po.rows, po.rows), dtype=float)
     if not np.isfinite(flow).all():
         raise Exception("error \"" + flowfile + "\" contains illegal values")
-    img2[:, :, 0] = (flow[:, :, 0] ** 2 + flow[:, :, 1] ** 2 < 0.1) * 255
-    img2[:, :, 1] = (flow[:, :, 0] ** 2 + flow[:, :, 1] ** 2 < 0.01) * 255
+    abs2 = np.sqrt(np.sum(flow[:, :, 0:2] ** 2, axis=2))
+    img2[:, :, 0] = (abs2 < 0.01) * 255
+    img2[:, :, 1] = np.logical_and(0.00001 < abs2, abs2 < 0.001) * 255
+    img2[:, :, 2] = (abs2 < 0.0001) * 255
     arrows = np.zeros((po.rows * po.rows, 4))
+    offset = (0, 0)
+    if po.anchor_minimum:
+        argmin = np.unravel_index(np.argmin(abs2 + 10000*(abs2 == 0)), abs2.shape)
+        offset = np.mod(argmin, abs2.shape / np.full(2, po.rows))
     for x in range(po.rows):
         for y in range(po.rows):
-            startpoint = scalar * np.asarray((x, y), dtype=float)
+            startpoint = scalar * np.asarray((x, y), dtype=float) + offset
             index = startpoint.astype(int)
             fl = np.dot(po.transform, np.asarray((*flow[(index[1], index[0])][0:2], 1)))
             endpoint = startpoint + fl
@@ -119,7 +126,6 @@ def process_frame(imagefile, flowfile, po):
         create_parent_directory(filename)
         write_fimage(filename, np.sqrt(np.sum(flow ** 2, axis=2)))
     if po.cabsout2 is not None:
-        abs2 = np.sqrt(np.sum(flow[:, :, 0:2] ** 2, axis=2))
         if po.cmax is None:
             abs2 /= np.max(abs2)
         else:
@@ -187,6 +193,8 @@ while i < len(sys.argv):
     elif arg == "transform":
         po.transform = np.asarray([int(x) for x in sys.argv[i + 1:i + 7]]).reshape(2, 3)
         i += 6
+    elif arg == "anchormin":
+        po.anchor_minimum = True
     elif arg == "help":
         print(sys.argv[
                   0] + " <Input Filenames> <ImageInputFolder> <FlowInputFolder> <ImageArrowOutput> <ArrowOutput> <TextOutput>")
