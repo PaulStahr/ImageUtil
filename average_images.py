@@ -4,8 +4,6 @@ import os
 import glob
 import sys
 import ntpath
-import multiprocessing
-from joblib import Parallel, delayed
 from numpy import linalg as LA
 from enum import Enum
 import pyexr
@@ -89,11 +87,13 @@ def process_frame(filenames, mode, criteria, expression, opt, offset, logging):
 
 
 def process_frames(filenames, mode, criteria, expression, opt, offset, logging):
-    num_cores = multiprocessing.cpu_count()
     image_list = None
     if len(filenames) < 2:
         image_list = [process_frame(filenames, mode, criteria, expression, opt, offset, logging)]
     else:
+        import multiprocessing
+        from joblib import Parallel, delayed
+        num_cores = multiprocessing.cpu_count()
         factor = (len(filenames) + num_cores - 1) // num_cores
         image_list = Parallel(n_jobs=num_cores)(
             delayed(process_frame)(filenames[i * factor:min((i + 1) * factor, len(filenames))], mode, criteria, expression,
