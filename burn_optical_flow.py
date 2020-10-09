@@ -80,8 +80,9 @@ def process_frame(imagefile, flowfile, po):
     name = ntpath.splitext(basename)[0];
     flow = read_image(flowfile)
     img2 = np.zeros((*flow.shape[0:2], 3), dtype=np.uint8)
-    cv2.circle(img2, (img2.shape[1] // 2, img2.shape[0] // 2), img2.shape[0] // 2, (255, 255, 255))
-    scalar = np.asarray(img2.shape, dtype=float)[0:2] / np.asarray((po.rows, po.rows), dtype=float)
+    shape = np.asarray(img2.shape)
+    cv2.circle(img2, (shape[1] // 2, shape[0] // 2), shape[0] // 2, (255, 255, 255))
+    scalar = np.asarray(shape, dtype=float)[0:2] / np.asarray((po.rows, po.rows), dtype=float)
     if not np.isfinite(flow).all():
         raise Exception("error \"" + flowfile + "\" contains illegal values")
     abs2 = np.sqrt(np.sum(flow[:, :, 0:2] ** 2, axis=2))
@@ -99,7 +100,7 @@ def process_frame(imagefile, flowfile, po):
             index = startpoint.astype(int)
             fl = np.dot(po.transform, np.asarray((*flow[(index[1], index[0])][0:2], 1)))
             endpoint = startpoint + fl
-            arrows[x * po.rows + y, :] = (*(startpoint / np.asarray(img2.shape[0:2])), *fl)
+            arrows[x * po.rows + y, :] = (*(startpoint / shape[0:2]), *fl)
             startpoint = tuple(startpoint.astype(int))
             endpoint = tuple(endpoint.astype(int))
             if img is not None:
