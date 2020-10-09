@@ -1,7 +1,6 @@
 import numpy as np
 import imageio
 import os
-import matplotlib.pyplot as plt
 import glob
 import sys
 import ntpath
@@ -266,6 +265,7 @@ elif premode is not None:
     preimage /= len(accepted)
     # TODO: maybe normalize again for some measures?
     if show:
+        import matplotlib.pyplot as plt
         plt.imshow(preimage)
         plt.show()
     if preout is not None:
