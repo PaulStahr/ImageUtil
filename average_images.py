@@ -103,7 +103,7 @@ def process_frame(core, filenames, mode, criteria, expression, opt, offset, logg
 def process_frames(filenames, mode, criteria, expression, opt, offset, logging):
     image_list = None
     if len(filenames) < 2:
-        image_list = [process_frame(filenames, mode, criteria, expression, opt, offset, logging)]
+        image_list = [process_frame(0, filenames, mode, criteria, expression, opt, offset, logging)]
     else:
         import multiprocessing
         from joblib import Parallel, delayed
