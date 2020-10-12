@@ -156,6 +156,7 @@ output = None
 doutput = None
 soutput = None
 fallback = None
+precheck = False
 opt = Opts()
 
 i = 1
@@ -244,6 +245,8 @@ while i < len(sys.argv):
     elif arg == "sextract":
         opt.sextract.append(compile(sys.argv[i + 1], '<string>', 'eval'))
         i += 1
+    elif arg == "precheck":
+        precheck = True
     elif arg == "fallback":
         fallback = (*[int(a) for a in sys.argv[i+1:i+4]], sys.argv[i + 4])
         i += 4
@@ -257,6 +260,11 @@ if logging < 1:
     print(sys.argv)
 if logging < 0:
     print(filenames)
+if precheck:
+    from os import path
+    for file in filenames:
+        if not path.isfile(file):
+            raise Exception("Precheck failed, file " + file + " doesn't exist")
 preimage = None
 if prein is not None:
     preimage = read_image(prein)
