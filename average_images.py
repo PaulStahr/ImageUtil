@@ -279,9 +279,13 @@ def main():
         print(filenames)
     if precheck:
         from os import path
+        successful = True
         for file in filenames:
             if not path.isfile(file):
-                raise Exception("Precheck failed, file " + file + " doesn't exist")
+                successful = False
+                print("Precheck failed, file " + file + " doesn't exist")
+        if not successful:
+            raise Exception("Files incomplete")
     preimage = None
     if prein is not None:
         preimage = read_image(prein)
