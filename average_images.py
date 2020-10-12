@@ -301,7 +301,7 @@ def main():
             print("second pass")
             image, accepted, extracted = process_frames(filenames, mode, criteria, expression, opt, preimage, logging)
             if mode == Mode.VARIANCE_NORMALIZED or mode == Mode.AVERAGE_NORMALIZED:
-                image = LA.norm(image, axis=2)
+                image = linalg.norm(image, axis=2)
         else:
             image = preimage
         print("accepted", len(accepted), "of", len(filenames))
