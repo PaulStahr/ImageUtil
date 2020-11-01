@@ -101,6 +101,10 @@ def process_frame(core, filenames, mode, criteria, expression, opt, offset, logg
 
 
 def process_frames(filenames, mode, criteria, expression, opt, offset, logging):
+    if offset is not None and (mode == Mode.VARIANCE_ARC or mode == Mode.VARIANCE_NORMALIZED):
+        div = linalg.norm(offset, axis=2)[..., None]
+        if np.any(div != 0):
+            offset /= div
     image_list = None
     if len(filenames) < 2:
         image_list = [process_frame(0, filenames, mode, criteria, expression, opt, offset, logging)]
@@ -292,7 +296,6 @@ def main():
     elif premode is not None:
         preimage, accepted, extracted = process_frames(filenames, premode, criteria, expression, opt, None, logging)
         preimage /= len(accepted)
-        # TODO: maybe normalize again for some measures?
         if show:
             import matplotlib.pyplot as plt
             plt.imshow(preimage)
