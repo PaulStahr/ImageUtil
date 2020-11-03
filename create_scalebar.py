@@ -20,9 +20,9 @@ else:
         raise Exception("Unknown cmap", sys.argv[2])
     norm = None
     if sys.argv[5] == "norm":
-        norm = mpl.colors.Normalize(vmin=float(sys.argv[3]), vmax=float(sys.argv[4]))
+        norm = mpl.colors.Normalize(vmin=float(eval(sys.argv[3])), vmax=float(eval(sys.argv[4])))
     elif sys.argv[5] == "log":
-        norm = mpl.colors.LogNorm(vmin=float(sys.argv[3]), vmax=float(sys.argv[4]))
+        norm = mpl.colors.LogNorm(vmin=float(eval(sys.argv[3])), vmax=float(eval(sys.argv[4])))
     fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
                  cax=ax, orientation=('horizontal' if sys.argv[1] == 'h' else 'vertical'), label=sys.argv[6], fraction=0.046, pad=0.04)
     plt.tight_layout()
