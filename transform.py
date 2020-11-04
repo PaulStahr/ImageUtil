@@ -25,6 +25,13 @@ def create_parent_directory(filename):
         os.makedirs(dirname)
 
 
+def write_numbers(filename, list):
+    file = open(filename, "w")
+    for elem in list:
+        file.write(str(elem) + '\n')
+    file.close()
+
+
 # def set_resolution(colormap, N):
 #    colors=cm.gnuplot(np.linspace(0,1,cm.gnuplot.N))
 #    {'red':np.asarray((np.linspace(0,1,len(colors)),colors[:,0],colors[:,0])).T,
@@ -74,7 +81,7 @@ def write_fimage(filename, img):
         imageio.imwrite(filename, img)
 
 
-def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging):
+def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, opts, logging):
     if scalfilenames is not None and len(scalfilenames) != len(filenames):
         raise Exception("Different lengths in filename and scalfilenames", len(filenames), len(scalfilenames))
     for i in range(len(filenames)):
@@ -100,9 +107,15 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, opts, logging
                     write_fimage(filename, out)
                 except Exception as ex:
                     print("Can't write image", ex)
+            for output in distoutputs:
+                x,y,z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
+                args2 = {'np': np, 'img': img, 'opts': opts, 'x':x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt((x/img.shape[0]-0.5)**2+(y/img.shape[1]-0.5)**2)}
+                out = eval(output[0], args2)
+                filename = output[1] + '/' + base + output[2]
+                write_numbers(filename, out)
 
 
-def process_frames(inputs, scalarinputs, scalarfolder, outputs, opts, logging):
+def process_frames(inputs, scalarinputs, scalarfolder, outputs, distoutputs, opts, logging):
     njobs = len(inputs)
     if njobs == 0:
         return
@@ -112,12 +125,13 @@ def process_frames(inputs, scalarinputs, scalarfolder, outputs, opts, logging):
                                                       None if scalarinputs is None else scalarinputs[
                                                                                         i * factor:min((i + 1) * factor,
                                                                                                        njobs)],
-                                                      scalarfolder, outputs, opts, logging) for i in range(num_cores))
+                                                      scalarfolder, outputs, distoutputs, opts, logging) for i in range(num_cores))
 
 
 inputs = []
 scalarinputs = []
 outputs = []
+distoutputs = []
 scalarfolder = None
 scalebarout = None
 opts = Opts()
@@ -132,6 +146,10 @@ while i < len(sys.argv):
         cmdMode = CmdMode.SCALARINPUT
     elif arg == "--output":
         outputs.append((compile(sys.argv[i + 1], '<string>', 'eval'), sys.argv[i + 2], sys.argv[i + 3]))
+        cmdMode = CmdMode.UNDEF
+        i += 3
+    elif arg == "--distoutput":
+        distoutputs.append((compile(sys.argv[i + 1], '<string>', 'eval'), sys.argv[i + 2], sys.argv[i + 3]))
         cmdMode = CmdMode.UNDEF
         i += 3
     elif arg == "--alphamask":
@@ -176,4 +194,4 @@ if scalebarout is not None:
     print(result.shape)
     create_parent_directory(scalebarout[1])
     write_fimage(scalebarout[1], result)
-process_frames(inputs, None if len(scalarinputs) == 0 else scalarinputs, scalarfolder, outputs, opts, logging)
+process_frames(inputs, None if len(scalarinputs) == 0 else scalarinputs, scalarfolder, outputs, distoutputs, opts, logging)
