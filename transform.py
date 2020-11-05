@@ -19,19 +19,30 @@ class CmdMode(Enum):
     FUNCTION = 4
 
 
+def divlim(divident, divisor):
+    return np.divide(divident, divisor, np.ones_like(divident), where=np.logical_and(divident!=0,divisor!=0))
+
+
 def highdensity(img, p, transformation = None):
-    sorted = np.sort(img.flatten())
+    permutation = np.argsort(img.flatten())
     cumsum = None
     if transformation == None:
-        cumsum = np.cumsum(sorted)
+        cumsum = np.cumsum(img[permutation])
     elif transformation == "spherical-equidistant":
-        x, y, z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
+        x = None
+        y = None
+        if len(img.shape) == 2:
+            x, y = np.mgrid[0:img.shape[0], 0:img.shape[1]]            
+        elif len(img.shape) == 3:
+            x, y, z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
+        else:
+            raise Exception("Unsopported image-dimension", len(img.shape))
         r = np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2)*np.pi * 0.5
-        cumsum = np.cumsum(sorted * sin(r) / r)
+        cumsum = np.cumsum((img * divlim(np.sin(r), r)).flatten()[permutation])
     else:
         raise Exception("Unknown transformation", transformation)
-    idx = np.searchsorted(cumsum, cumsum[-1] * p)
-    return img > sorted[idx]
+    idx = np.searchsorted(cumsum, cumsum[-1] * (1-p))
+    return img > img.flatten()[permutation][idx]
 
 
 def create_parent_directory(filename):
@@ -124,7 +135,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                     print("Can't write image", ex)
             for output in distoutputs:
                 x,y,z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
-                args2 = {'np': np, 'img': img, 'opts': opts, 'x':x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2)}
+                args2 = {'np': np, 'img': img, 'opts': opts, 'x':x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim}
                 out = eval(output[0], args2)
                 filename = output[1] + '/' + base + output[2]
                 write_numbers(filename, out)
