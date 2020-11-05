@@ -19,6 +19,21 @@ class CmdMode(Enum):
     FUNCTION = 4
 
 
+def highdensity(img, p, transformation = None):
+    sorted = np.sort(img.flatten())
+    cumsum = None
+    if transformation == None:
+        cumsum = np.cumsum(sorted)
+    elif transformation == "spherical-equidistant":
+        x, y, z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
+        r = np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2)*np.pi * 0.5
+        cumsum = np.cumsum(sorted * sin(r) / r)
+    else:
+        raise Exception("Unknown transformation", transformation)
+    idx = np.searchsorted(cumsum, cumsum[-1] * p)
+    return img > sorted[idx]
+
+
 def create_parent_directory(filename):
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
@@ -92,7 +107,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
             print(filename)
             base = os.path.splitext(os.path.basename(filename))[0]
             img = read_image(filename)
-            args = {'np': np, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img)}
+            args = {'np': np, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img), 'highdensity': highdensity}
             if scalarfolder is not None:
                 with open(scalarfolder + '/' + base + ".txt") as file:
                     args['scal'] = float(file.readline())
@@ -109,7 +124,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                     print("Can't write image", ex)
             for output in distoutputs:
                 x,y,z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
-                args2 = {'np': np, 'img': img, 'opts': opts, 'x':x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt((x/img.shape[0]-0.5)**2+(y/img.shape[1]-0.5)**2)}
+                args2 = {'np': np, 'img': img, 'opts': opts, 'x':x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2)}
                 out = eval(output[0], args2)
                 filename = output[1] + '/' + base + output[2]
                 write_numbers(filename, out)
