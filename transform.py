@@ -20,7 +20,7 @@ class CmdMode(Enum):
 
 
 def divlim(divident, divisor):
-    return np.divide(divident, divisor, np.ones_like(divident), where=np.logical_and(divident!=0,divisor!=0))
+    return np.divide(divident, divisor, np.ones_like(divident), where=np.logical_or(divident!=0,divisor!=0))
 
 
 def highdensity(img, p, transformation = None):
