@@ -107,6 +107,13 @@ def write_fimage(filename, img):
         imageio.imwrite(filename, img)
 
 
+def equi2cart(x, y):
+    radius = np.sqrt(x ** 2 + y ** 2)
+    radian = radius * np.pi
+    sin = np.sin(radian)
+    return np.asarray((divlim(sin * x, radius), divlim(sin * y, radius), np.cos(radian)))
+
+
 def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, opts, logging):
     if scalfilenames is not None and len(scalfilenames) != len(filenames):
         raise Exception("Different lengths in filename and scalfilenames", len(filenames), len(scalfilenames))
@@ -134,11 +141,15 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                 except Exception as ex:
                     print("Can't write image", ex)
             for output in distoutputs:
-                x,y,z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
-                args2 = {'np': np, 'img': img, 'opts': opts, 'x':x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim}
+                x, y, z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
+                args2 = {'np': np, 'equi2cart': equi2cart, 'img': img, 'opts': opts, 'x': x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim}
                 out = eval(output[0], args2)
                 filename = output[1] + '/' + base + output[2]
-                write_numbers(filename, out)
+                create_parent_directory(filename)
+                if len(out.shape) == 2:
+                    np.savetxt(filename, out, delimiter=' ', fmt='%f')
+                else:
+                    write_numbers(filename, out)
 
 
 def process_frames(inputs, scalarinputs, scalarfolder, outputs, distoutputs, opts, logging):
