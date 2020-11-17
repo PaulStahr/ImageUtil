@@ -19,6 +19,10 @@ class CmdMode(Enum):
     FUNCTION = 4
 
 
+class Transformation(Enum):
+    EQUIDISTANT = 0
+    EQUIDISTANT_HALF = 1
+
 def divlim(divident, divisor):
     return np.divide(divident, divisor, np.ones_like(divident), where=np.logical_or(divident!=0,divisor!=0))
 
@@ -69,6 +73,8 @@ class Opts():
     def __init__(self):
         self.low = 0
         self.high = 1
+        self.alphamask = None
+        self.transformation = None
 
 
 def highres(colmap, data):
@@ -125,7 +131,14 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
             print(filename)
             base = os.path.splitext(os.path.basename(filename))[0]
             img = read_image(filename)
-            args = {'np': np, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img), 'highdensity': highdensity}
+            x, y, z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
+            ds = None
+            if opts.transformation == Transformation.EQUIDISTANT or opts.transformation == Transformation.EQUIDISTANT_HALF:
+                tmp = np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2) * np.pi
+                if opts.transformation == Transformation.EQUIDISTANT_HALF:
+                    tmp /= 2
+                ds = divlim(np.sin(tmp),tmp)
+            args = {'np': np, 'ds': ds, 'equi2cart': equi2cart, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img), 'highdensity': highdensity, 'x': x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim}
             if scalarfolder is not None:
                 with open(scalarfolder + '/' + base + ".txt") as file:
                     args['scal'] = float(file.readline())
@@ -141,9 +154,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                 except Exception as ex:
                     print("Can't write image", ex)
             for output in distoutputs:
-                x, y, z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
-                args2 = {'np': np, 'equi2cart': equi2cart, 'img': img, 'opts': opts, 'x': x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim}
-                out = eval(output[0], args2)
+                out = eval(output[0], args)
                 filename = output[1] + '/' + base + output[2]
                 create_parent_directory(filename)
                 if len(out.shape) == 2:
@@ -202,6 +213,14 @@ while i < len(sys.argv):
         scalebarout = (sys.argv[i + 1], sys.argv[i + 2])
         cmdMode = CmdMode.UNDEF
         i += 2
+    elif arg == "--transformation":
+        if sys.argv[i + 1] == "equidistant-half":
+            opts.transformation = Transformation.EQUIDISTANT_HALF
+        elif sys.argv[i + 1] == "equidistant":
+            opts.transformation = Transformation.EQUIDISTANT
+        else:
+            raise Exception('Unknown transformation', sys.argv[i + 1])
+        i += 1
     elif arg == "--range":
         opts.low = float(sys.argv[i + 1])
         opts.high = float(sys.argv[i + 2])

@@ -11,11 +11,18 @@ import OpenEXR
 import Imath
 
 
+class Transformation(Enum):
+    EQUIDISTANT = 0
+    EQUIDISTANT_HALF = 1
+
+
 class Opts:
     def __init__(self):
         self.extract = []
         self.sextract = []
         self.display_process = -1
+        self.alphamask = None
+        self.transformation = None
 
 
 class Mode(Enum):
@@ -71,6 +78,13 @@ def process_frame(core, filenames, mode, criteria, expression, opt, offset, logg
         if expression is not None:
             img = eval(expression)
         img = img.astype(float)
+        ds = None
+        if opts.transformation == Transformation.EQUIDISTANT or opts.transformation == Transformation.EQUIDISTANT_HALF:
+            x, y, z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
+            tmp = np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2) * np.pi
+            if opts.transformation == Transformation.EQUIDISTANT_HALF:
+                tmp /= 2
+            ds = divlim(np.sin(tmp),tmp)
         if mode == Mode.VARIANCE_ARC and img.shape[2] != 3:
             raise Exception("Shape of image is completely wrong", img.shape)
         if mode == Mode.AVERAGE_NORMALIZED or mode == Mode.VARIANCE_ARC:
@@ -222,6 +236,9 @@ def main():
         elif arg == "criteria":
             criteria = compile(sys.argv[i + 1], '<string>', 'eval')
             i += 1
+        elif arg == "alphamask":
+            opt.alphamask = read_image(sys.argv[i + 1])
+            i += 1
         elif arg == "expression":
             expression = compile(sys.argv[i + 1], '<string>', 'eval')
             i += 1
@@ -257,6 +274,13 @@ def main():
         elif arg == "prein":
             prein = sys.argv[i + 1]
             i += 1
+        elif arg == "transformation":
+            if sys.argv[i + 1] == "equidistant-half":
+                opts.transformation = Transformation.EQUIDISTANT_HALF
+            elif sys.argv[i + 1] == "equidistant":
+                opt.trasformation = Transformation.EQUIDISTANT
+            else:
+                raise Exception('Unknown transformation', sys.argv[i + 1])
         elif arg == "progress":
             opt.display_process = int(sys.argv[i + 1])
             i += 1
