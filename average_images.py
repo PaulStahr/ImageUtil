@@ -347,7 +347,10 @@ def main():
                 print(extracted)
             else:
                 create_parent_directory(eoutput)
-                np.savetxt(eoutput, [x.flatten() for x in extracted], delimiter=' ', fmt='%f')
+                try:
+                    np.savetxt(eoutput, [x.flatten() for x in extracted], delimiter=' ', fmt='%f')
+                except:
+                    np.savetxt(eoutput, [x.flatten() for x in extracted], delimiter=' ', fmt='%s')
 
         if coutput is not None:
             print(coutput, len(accepted))
