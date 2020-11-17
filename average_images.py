@@ -61,7 +61,11 @@ def printProgressBar (iteration, total, prefix='', suffix='', decimals=1, length
         print()
 
 
-def process_frame(core, filenames, mode, criteria, expression, opt, offset, logging):
+def divlim(divident, divisor):
+    return np.divide(divident, divisor, np.ones_like(divident), where=np.logical_or(divident!=0,divisor!=0))
+
+
+def process_frame(core, filenames, mode, criteria, expression, opts, offset, logging):
     if len(filenames) == 0:
         return None
     if logging < 0:
@@ -105,23 +109,23 @@ def process_frame(core, filenames, mode, criteria, expression, opt, offset, logg
             added += to_add
         else:
             added = to_add
-        for sext in opt.sextract:
+        for sext in opts.sextract:
             extracted.append(eval(sext))
-        if len(opt.sextract) == 0:
-            extracted.append(to_add[opt.extract])
-        if opt.display_process == core:
+        if len(opts.sextract) == 0:
+            extracted.append(to_add[opts.extract])
+        if opts.display_process == core:
             printProgressBar(ifile, len(filenames), prefix='Progress:', suffix='Complete', length=50)
     return added, accepted, extracted
 
 
-def process_frames(filenames, mode, criteria, expression, opt, offset, logging):
+def process_frames(filenames, mode, criteria, expression, opts, offset, logging):
     if offset is not None and (mode == Mode.VARIANCE_ARC or mode == Mode.VARIANCE_NORMALIZED):
         div = linalg.norm(offset, axis=2)[..., None]
         if np.any(div != 0):
             offset /= div
     image_list = None
     if len(filenames) < 2:
-        image_list = [process_frame(0, filenames, mode, criteria, expression, opt, offset, logging)]
+        image_list = [process_frame(0, filenames, mode, criteria, expression, opts, offset, logging)]
     else:
         import multiprocessing
         from joblib import Parallel, delayed
@@ -129,7 +133,7 @@ def process_frames(filenames, mode, criteria, expression, opt, offset, logging):
         factor = (len(filenames) + num_cores - 1) // num_cores
         image_list = Parallel(n_jobs=num_cores)(
             delayed(process_frame)(core, filenames[core * factor:min((core + 1) * factor, len(filenames))], mode, criteria,
-                                   expression, opt, offset, logging) for core in range(num_cores))
+                                   expression, opts, offset, logging) for core in range(num_cores))
     accepted = []
     extracted = []
     added = None
@@ -189,7 +193,7 @@ def main():
     soutput = None
     fallback = None
     precheck = False
-    opt = Opts()
+    opts = Opts()
 
     i = 1
     while i < len(sys.argv):
@@ -237,7 +241,7 @@ def main():
             criteria = compile(sys.argv[i + 1], '<string>', 'eval')
             i += 1
         elif arg == "alphamask":
-            opt.alphamask = read_image(sys.argv[i + 1])
+            opts.alphamask = read_image(sys.argv[i + 1])
             i += 1
         elif arg == "expression":
             expression = compile(sys.argv[i + 1], '<string>', 'eval')
@@ -278,17 +282,18 @@ def main():
             if sys.argv[i + 1] == "equidistant-half":
                 opts.transformation = Transformation.EQUIDISTANT_HALF
             elif sys.argv[i + 1] == "equidistant":
-                opt.trasformation = Transformation.EQUIDISTANT
+                opts.transformation = Transformation.EQUIDISTANT
             else:
                 raise Exception('Unknown transformation', sys.argv[i + 1])
+            i += 1
         elif arg == "progress":
-            opt.display_process = int(sys.argv[i + 1])
+            opts.display_process = int(sys.argv[i + 1])
             i += 1
         elif arg == "extract":
-            opt.extract.append(np.fromstring(sys.argv[i + 1], sep=',', dtype=int))
+            opts.extract.append(np.fromstring(sys.argv[i + 1], sep=',', dtype=int))
             i += 1
         elif arg == "sextract":
-            opt.sextract.append(compile(sys.argv[i + 1], '<string>', 'eval'))
+            opts.sextract.append(compile(sys.argv[i + 1], '<string>', 'eval'))
             i += 1
         elif arg == "precheck":
             precheck = True
@@ -298,9 +303,9 @@ def main():
         else:
             raise Exception("Unknown argument " + arg)
         i += 1
-    opt.extract = (*np.asarray(opt.extract).T,)
-    if len(opt.extract) == 0:
-        opt.extract = ([], [])
+    opts.extract = (*np.asarray(opts.extract).T,)
+    if len(opts.extract) == 0:
+        opts.extract = ([], [])
     if logging < 1:
         print(sys.argv)
     if logging < 0:
@@ -318,7 +323,7 @@ def main():
     if prein is not None:
         preimage = read_image(prein)
     elif premode is not None:
-        preimage, accepted, extracted = process_frames(filenames, premode, criteria, expression, opt, None, logging)
+        preimage, accepted, extracted = process_frames(filenames, premode, criteria, expression, opts, None, logging)
         preimage /= len(accepted)
         if show:
             import matplotlib.pyplot as plt
@@ -330,7 +335,7 @@ def main():
         image = None
         if mode is not None:
             print("second pass")
-            image, accepted, extracted = process_frames(filenames, mode, criteria, expression, opt, preimage, logging)
+            image, accepted, extracted = process_frames(filenames, mode, criteria, expression, opts, preimage, logging)
             if mode == Mode.VARIANCE_NORMALIZED or mode == Mode.AVERAGE_NORMALIZED:
                 image = linalg.norm(image, axis=2)
         else:
