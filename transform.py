@@ -120,6 +120,12 @@ def equi2cart(x, y):
     return np.asarray((divlim(sin * x, radius), divlim(sin * y, radius), np.cos(radian)))
 
 
+def cart2equi(x, y, z):
+    length = np.sqrt(x * x + y * y);
+    length = np.arctan2(length, z) / (length * np.pi);
+    return np.asarray((x * length, y * length))
+
+
 def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, opts, logging):
     if scalfilenames is not None and len(scalfilenames) != len(filenames):
         raise Exception("Different lengths in filename and scalfilenames", len(filenames), len(scalfilenames))
@@ -138,7 +144,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                 if opts.transformation == Transformation.EQUIDISTANT_HALF:
                     tmp /= 2
                 ds = divlim(np.sin(tmp),tmp)
-            args = {'np': np, 'ds': ds, 'equi2cart': equi2cart, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img), 'highdensity': highdensity, 'x': x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim}
+            args = {'np': np, 'ds': ds, 'equi2cart': equi2cart, 'cart2equi': cart2equi, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img), 'highdensity': highdensity, 'x': x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim}
             if scalarfolder is not None:
                 with open(scalarfolder + '/' + base + ".txt") as file:
                     args['scal'] = float(file.readline())
