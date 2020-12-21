@@ -23,6 +23,8 @@ class Opts:
         self.display_process = -1
         self.alphamask = None
         self.transformation = None
+        self.check = None
+        self.criteria = None
 
 
 class Mode(Enum):
@@ -65,7 +67,7 @@ def divlim(divident, divisor):
     return np.divide(divident, divisor, np.ones_like(divident), where=np.logical_or(divident!=0,divisor!=0))
 
 
-def process_frame(core, filenames, mode, criteria, expression, opts, offset, logging):
+def process_frame(core, filenames, mode, expression, opts, offset, logging):
     if len(filenames) == 0:
         return None
     if logging < 0:
@@ -76,9 +78,13 @@ def process_frame(core, filenames, mode, criteria, expression, opts, offset, log
     for ifile in range(len(filenames)):
         file = filenames[ifile]
         img = read_image(file)
-        if criteria is not None:
-            if not eval(criteria):
+        if opts.criteria is not None:
+            if not eval(opts.criteria):
                 continue
+        if opts.check is not None:
+            chk = eval(opts.check)
+            if chk is not None:
+                raise chk
         if expression is not None:
             img = eval(expression)
         img = img.astype(float)
@@ -118,21 +124,21 @@ def process_frame(core, filenames, mode, criteria, expression, opts, offset, log
     return added, accepted, extracted
 
 
-def process_frames(filenames, mode, criteria, expression, opts, offset, logging):
+def process_frames(filenames, mode, expression, opts, offset, logging):
     if offset is not None and (mode == Mode.VARIANCE_ARC or mode == Mode.VARIANCE_NORMALIZED):
         div = linalg.norm(offset, axis=2)[..., None]
         if np.any(div != 0):
             offset /= div
     image_list = None
     if len(filenames) < 2:
-        image_list = [process_frame(0, filenames, mode, criteria, expression, opts, offset, logging)]
+        image_list = [process_frame(0, filenames, mode, expression, opts, offset, logging)]
     else:
         import multiprocessing
         from joblib import Parallel, delayed
         num_cores = multiprocessing.cpu_count()
         factor = (len(filenames) + num_cores - 1) // num_cores
         image_list = Parallel(n_jobs=num_cores)(
-            delayed(process_frame)(core, filenames[core * factor:min((core + 1) * factor, len(filenames))], mode, criteria,
+            delayed(process_frame)(core, filenames[core * factor:min((core + 1) * factor, len(filenames))], mode,
                                    expression, opts, offset, logging) for core in range(num_cores))
     accepted = []
     extracted = []
@@ -179,7 +185,6 @@ def main():
     premode = None
     mode = Mode.AVERAGE
     expression = None
-    criteria = None
     show = False
     logging = 0
     coutput = None
@@ -238,7 +243,10 @@ def main():
             filenames.sort()
             break
         elif arg == "criteria":
-            criteria = compile(sys.argv[i + 1], '<string>', 'eval')
+            opts.criteria = compile(sys.argv[i + 1], '<string>', 'eval')
+            i += 1
+        elif arg == "check":
+            opts.check = compile(sys.argv[i + 1], '<string>', 'eval')
             i += 1
         elif arg == "alphamask":
             opts.alphamask = read_image(sys.argv[i + 1])
@@ -323,7 +331,7 @@ def main():
     if prein is not None:
         preimage = read_image(prein)
     elif premode is not None:
-        preimage, accepted, extracted = process_frames(filenames, premode, criteria, expression, opts, None, logging)
+        preimage, accepted, extracted = process_frames(filenames, premode, expression, opts, None, logging)
         preimage /= len(accepted)
         if show:
             import matplotlib.pyplot as plt
@@ -335,7 +343,7 @@ def main():
         image = None
         if mode is not None:
             print("second pass")
-            image, accepted, extracted = process_frames(filenames, mode, criteria, expression, opts, preimage, logging)
+            image, accepted, extracted = process_frames(filenames, mode, expression, opts, preimage, logging)
             if mode == Mode.VARIANCE_NORMALIZED or mode == Mode.AVERAGE_NORMALIZED:
                 image = linalg.norm(image, axis=2)
         else:
