@@ -192,7 +192,7 @@ while i < len(sys.argv):
         po.tableout = sys.argv[i + 1]
         i += 1
     elif arg == "transform":
-        po.transform = np.asarray([int(x) for x in sys.argv[i + 1:i + 7]]).reshape(2, 3)
+        po.transform = np.asarray([float(eval(x)) for x in sys.argv[i + 1:i + 7]]).reshape(2, 3)
         i += 6
     elif arg == "anchormin":
         po.anchor_minimum = True
