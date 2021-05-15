@@ -9,6 +9,7 @@ import os
 from matplotlib import cm
 import pyexr
 import png
+import colorsys
 
 
 class CmdMode(Enum):
@@ -36,7 +37,7 @@ def highdensity(img, p, transformation = None):
         x = None
         y = None
         if len(img.shape) == 2:
-            x, y = np.mgrid[0:img.shape[0], 0:img.shape[1]]            
+            x, y = np.mgrid[0:img.shape[0], 0:img.shape[1]]
         elif len(img.shape) == 3:
             x, y, z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
         else:
@@ -60,6 +61,20 @@ def write_numbers(filename, list):
     for elem in list:
         file.write(str(elem) + '\n')
     file.close()
+
+
+def cmyk_to_rgb(c, m, y, k, cmyk_scale, rgb_scale=255):
+    r = rgb_scale * (1.0 - c / float(cmyk_scale)) * (1.0 - k / float(cmyk_scale))
+    g = rgb_scale * (1.0 - m / float(cmyk_scale)) * (1.0 - k / float(cmyk_scale))
+    b = rgb_scale * (1.0 - y / float(cmyk_scale)) * (1.0 - k / float(cmyk_scale))
+    return r, g, b
+
+
+def cmyk_to_rgb2(c,m,y,k):
+    r = rgb_scale*(1.0-(c+k)/float(cmyk_scale))
+    g = rgb_scale*(1.0-(m+k)/float(cmyk_scale))
+    b = rgb_scale*(1.0-(y+k)/float(cmyk_scale))
+    return r,g,b
 
 
 # def set_resolution(colormap, N):
@@ -144,7 +159,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                 if opts.transformation == Transformation.EQUIDISTANT_HALF:
                     tmp /= 2
                 ds = divlim(np.sin(tmp),tmp)
-            args = {'np': np, 'ds': ds, 'equi2cart': equi2cart, 'cart2equi': cart2equi, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img), 'highdensity': highdensity, 'x': x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim}
+            args = {'np': np, 'ds': ds, 'equi2cart': equi2cart, 'cart2equi': cart2equi, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img), 'highdensity': highdensity, 'x': x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim, 'colorsys': colorsys, 'cmyk_to_rgb': cmyk_to_rgb, 'cmyk_to_rgb2': cmyk_to_rgb2}
             if scalarfolder is not None:
                 with open(scalarfolder + '/' + base + ".txt") as file:
                     args['scal'] = float(file.readline())
