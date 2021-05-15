@@ -67,6 +67,16 @@ def divlim(divident, divisor):
     return np.divide(divident, divisor, np.ones_like(divident), where=np.logical_or(divident!=0,divisor!=0))
 
 
+def conditional_frequency(x,y,axis=None):
+    return np.sum(x*y,axis)/np.sum(y,axis)
+
+
+def inrange(data, low, high, lowclosed = True, highclosed = False):
+    lbound = low < data if lowclosed else low <= data
+    hbound = data < high if highclosed else data <= high
+    return np.logical_and(lbound, hbound)
+
+
 def process_frame(core, filenames, mode, expression, opts, offset, logging):
     if len(filenames) == 0:
         return None
