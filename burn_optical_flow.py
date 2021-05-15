@@ -23,7 +23,12 @@ def read_numbers(filename):
 def create_parent_directory(filename):
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
-        os.makedirs(dirname)
+        try:
+            os.makedirs(dirname)
+        except FileExistsError:
+            pass
+        except:
+            raise
 
 
 def highres(colmap, data):
