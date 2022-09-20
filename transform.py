@@ -224,7 +224,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                 shape = img.shape[0:2]
                 if opts.rescale is not None:
                    shape = opts.rescale
-                x,y = (np.mgrid[0:shape[0], 0:shape[1]] + 0.5) * 2 / np.asarray(shape)[0:2,np.newaxis,np.newaxis] - 1
+                y,x = np.meshgrid(np.linspace(-1+1/shape[0],1+1/shape[0],shape[0],endpoint=False), np.linspace(-1+1/shape[1],1+1/shape[1],shape[1],endpoint=False))
                 y = -y
                 pts = ((np.arange(0,img.shape[0]) + 0.5) * 2 / img.shape[0] - 1,(np.arange(0,img.shape[1]) + 0.5) * 2 / img.shape[1] - 1)
                 import scipy.interpolate
@@ -286,12 +286,12 @@ def process_frames(inputs, scalarinputs, scalarfolder, outputs, distoutputs, opt
     njobs = len(inputs)
     if njobs == 0:
         return
-    if njobs == 1:
+    if njobs < 5:
         process_frame(inputs,scalarinputs, scalarfolder, outputs, distoutputs, opts, logging)
     else:
         import multiprocessing
         from joblib import Parallel, delayed
-        num_cores = min(njobs,multiprocessing.cpu_count())
+        num_cores = min(njobs / 5,multiprocessing.cpu_count())
         factor = (njobs + num_cores - 1)
         Parallel(n_jobs=num_cores)(delayed(process_frame)(inputs[i * factor:min((i + 1) * factor, njobs)],
                                                         None if scalarinputs is None else scalarinputs[
