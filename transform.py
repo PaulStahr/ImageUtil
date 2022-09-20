@@ -1,14 +1,9 @@
 import glob
 import sys
 import numpy as np
-from joblib import Parallel, delayed
 from enum import Enum
-import multiprocessing
-import imageio
 import os
 from matplotlib import cm
-import pyexr
-import png
 import colorsys
 
 
@@ -23,6 +18,9 @@ class CmdMode(Enum):
 class Transformation(Enum):
     EQUIDISTANT = 0
     EQUIDISTANT_HALF = 1
+    CYLINDRICAL_EQUIDISTANT = 2
+    PROJECT = 3
+
 
 def divlim(divident, divisor):
     return np.divide(divident, divisor, np.ones_like(divident), where=np.logical_or(divident!=0,divisor!=0))
@@ -90,6 +88,10 @@ class Opts():
         self.high = 1
         self.alphamask = None
         self.transformation = None
+        self.srctransformation = None
+        self.rescale = None
+        self.remove_on_error = False
+        self.retransform = None
 
 
 def highres(colmap, data):
@@ -101,13 +103,19 @@ def highres(colmap, data):
 
 def read_image(file):
     img = None
+    header = None
     if file.endswith(".exr"):
-        img = pyexr.read(file)
+        import pyexr
+        f = pyexr.open(file)
+        header = f.input_file.header()
+        img = f.get('default', pyexr.FLOAT)
+        #img = pyexr.read(file)
     else:
-        img = imageio.imread(file)
+        import imageio
+        img = imageio.v2.imread(file)
     if len(img.shape) == 2:
         img = img[..., None]
-    return img
+    return img, header
 
 
 def write_fimage(filename, img):
@@ -119,26 +127,72 @@ def write_fimage(filename, img):
             out.writePixels({'Y': img})
             out.close()
         else:
+            import pyexr
             pyexr.write(filename, img)
     elif len(img.shape) == 3 and img.shape[2] == 2 and filename.endswith(".png"):
+        import png
         w = png.Writer(img.shape[1], img.shape[0], alpha=True, greyscale=True)
         with open(filename, 'wb') as f:
             w.write(f, img[:, :, 0:2].reshape((img.shape[0], -1)))
     else:
+        import imageio
         imageio.imwrite(filename, img)
 
 
+def cart2equicyl(x,y,z):
+    length = np.sqrt(x * x + y * y);
+    length = 1 - np.arctan2(length, z) * 2 / np.pi;
+    return np.asarray((np.arctan2(x,y) / np.pi, length))
+
+
+def equicyl2cart(x,y):
+    radian = y * np.pi * 0.5
+    cos = np.cos(radian)
+    x = x * np.pi
+    return np.asarray((cos * np.sin(x),cos * np.cos(x),np.sin(radian)))
+
+
 def equi2cart(x, y):
-    radius = np.sqrt(x ** 2 + y ** 2)
+    radius = np.sqrt(np.square(x) + np.square(y))
     radian = radius * np.pi
     sin = np.sin(radian)
     return np.asarray((divlim(sin * x, radius), divlim(sin * y, radius), np.cos(radian)))
+
+
+def proj2cart(x,y):
+    z = 1-np.square(x)-np.square(y)
+    np.sqrt(z,out=z)
+    return np.asarray((x,y,z))
 
 
 def cart2equi(x, y, z):
     length = np.sqrt(x * x + y * y);
     length = np.arctan2(length, z) / (length * np.pi);
     return np.asarray((x * length, y * length))
+
+
+def cart2tex(x,y,z,tr):
+    if tr == Transformation.EQUIDISTANT:
+        return cart2equi(x,y,z)
+    elif tr == Transformation.EQUIDISTANT_HALF:
+        return cart2equi(x,y,z) * 2
+    elif tr == Transformation.CYLINDRICAL_EQUIDISTANT:
+        return cart2equicyl(x,y,z)
+    else:
+        raise Exception("Unknown enum")
+
+
+def tex2cart(x,y,tr):
+    if tr == Transformation.EQUIDISTANT:
+        return equi2cart(x,y)
+    elif tr == Transformation.EQUIDISTANT_HALF:
+        return equi2cart(x * 2,y * 2) * 2
+    elif tr == Transformation.CYLINDRICAL_EQUIDISTANT:
+        return equicyl2cart(x,y)
+    elif tr == Transformation.PROJECT:
+        return proj2cart(x,y)
+    else:
+        raise Exception("Unknown enum")
 
 
 def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, opts, logging):
@@ -151,7 +205,30 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
             filename = filenames[i][j]
             print(filename)
             base = os.path.splitext(os.path.basename(filename))[0]
-            img = read_image(filename)
+            img, header = read_image(filename)
+            if opts.srctransformation is not None:
+                shape = img.shape[0:2]
+                if opts.rescale is not None:
+                   shape = opts.rescale
+                x,y = (np.mgrid[0:shape[0], 0:shape[1]] + 0.5) * 2 / np.asarray(shape)[0:2,np.newaxis,np.newaxis] - 1
+                y = -y
+                pts = ((np.arange(0,img.shape[0]) + 0.5) * 2 / img.shape[0] - 1,(np.arange(0,img.shape[1]) + 0.5) * 2 / img.shape[0] - 1)
+                import scipy.interpolate
+                cart = tex2cart(x,y,opts.transformation)
+                if opts.retransform is not None:
+                    from scipy.spatial.transform import Rotation as R
+                    args = {'R':R, 'np':np, 'cart':cart}
+                    ldict = {}
+                    exec(opts.retransform, args, ldict)
+                    cart = ldict['cart']
+                    print(cart.shape)
+                evaluation_pts = cart2tex(*cart,opts.srctransformation)
+                evaluation_pts[1] = -evaluation_pts[1]
+                evaluation_pts = np.moveaxis(evaluation_pts,0,-1)
+                evaluation_pts = np.roll(evaluation_pts,1) #TODO this should not be needed
+                img = np.asarray([scipy.interpolate.interpn(pts,img[:,:,i],evaluation_pts,bounds_error=False,fill_value=None) for i in range(img.shape[2])])
+                img = np.moveaxis(img,0,-1)
+                img = np.moveaxis(img,0,1)
             x, y, z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
             ds = None
             if opts.transformation == Transformation.EQUIDISTANT or opts.transformation == Transformation.EQUIDISTANT_HALF:
@@ -159,7 +236,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                 if opts.transformation == Transformation.EQUIDISTANT_HALF:
                     tmp /= 2
                 ds = divlim(np.sin(tmp),tmp)
-            args = {'np': np, 'ds': ds, 'equi2cart': equi2cart, 'cart2equi': cart2equi, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img), 'highdensity': highdensity, 'x': x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim, 'colorsys': colorsys, 'cmyk_to_rgb': cmyk_to_rgb, 'cmyk_to_rgb2': cmyk_to_rgb2}
+            args = {'np': np, 'ds': ds, 'equi2cart': equi2cart, 'cart2equi': cart2equi, 'cart2equicyl':cart2equicyl, 'equicyl2cart':equicyl2cart, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img), 'highdensity': highdensity, 'x': x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim, 'colorsys': colorsys, 'cmyk_to_rgb': cmyk_to_rgb, 'cmyk_to_rgb2': cmyk_to_rgb2, 'header':header}
             if scalarfolder is not None:
                 with open(scalarfolder + '/' + base + ".txt") as file:
                     args['scal'] = float(file.readline())
@@ -167,7 +244,14 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                 with open(scalfilenames[i][j], "r") as file:
                     args['scal'] = float(file.readline())
             for output in outputs:
-                out = eval(output[0], args)
+                try:
+                    ldict = {}
+                    exec(output[0], args, ldict)
+                    out=ldict['out']
+                except Exception as ex:
+                    if opts.remove_on_error:
+                        os.remove(filename)
+                    raise
                 try:
                     filename = output[1] + '/' + base + output[2]
                     create_parent_directory(filename)
@@ -188,14 +272,31 @@ def process_frames(inputs, scalarinputs, scalarfolder, outputs, distoutputs, opt
     njobs = len(inputs)
     if njobs == 0:
         return
-    num_cores = multiprocessing.cpu_count()
-    factor = (njobs + num_cores - 1)
-    Parallel(n_jobs=num_cores)(delayed(process_frame)(inputs[i * factor:min((i + 1) * factor, njobs)],
-                                                      None if scalarinputs is None else scalarinputs[
-                                                                                        i * factor:min((i + 1) * factor,
-                                                                                                       njobs)],
-                                                      scalarfolder, outputs, distoutputs, opts, logging) for i in range(num_cores))
+    if njobs == 1:
+        process_frame(inputs,scalarinputs, scalarfolder, outputs, distoutputs, opts, logging)
+    else:
+        import multiprocessing
+        from joblib import Parallel, delayed
+        num_cores = min(njobs,multiprocessing.cpu_count())
+        factor = (njobs + num_cores - 1)
+        Parallel(n_jobs=num_cores)(delayed(process_frame)(inputs[i * factor:min((i + 1) * factor, njobs)],
+                                                        None if scalarinputs is None else scalarinputs[
+                                                                                            i * factor:min((i + 1) * factor,
+                                                                                                        njobs)],
+                                                        scalarfolder, outputs, distoutputs, opts, logging) for i in range(num_cores))
 
+
+def parse_transform(arg):
+    if arg == "equidistant-half":
+        return Transformation.EQUIDISTANT_HALF
+    elif arg == "equidistant":
+        return Transformation.EQUIDISTANT
+    elif arg == "cylindrical-equidistant":
+        return Transformation.CYLINDRICAL_EQUIDISTANT
+    elif arg == "project":
+        return Transformation.PROJECT
+    else:
+        raise Exception('Unknown transformation', arg)
 
 inputs = []
 scalarinputs = []
@@ -214,13 +315,17 @@ while i < len(sys.argv):
     elif arg == "--scalarinput":
         cmdMode = CmdMode.SCALARINPUT
     elif arg == "--output":
-        outputs.append((compile(sys.argv[i + 1], '<string>', 'eval'), sys.argv[i + 2], sys.argv[i + 3]))
+        outputs.append((compile(sys.argv[i + 1], '<string>', 'exec'), sys.argv[i + 2], sys.argv[i + 3]))
         cmdMode = CmdMode.UNDEF
         i += 3
     elif arg == "--distoutput":
         distoutputs.append((compile(sys.argv[i + 1], '<string>', 'eval'), sys.argv[i + 2], sys.argv[i + 3]))
         cmdMode = CmdMode.UNDEF
         i += 3
+    elif arg == "--retransform":
+        opts.retransform = compile(sys.argv[i + 1], '<string>', 'exec')
+        cmdMode = CmdMode.UNDEF
+        i += 1
     elif arg == "--alphamask":
         opts.alphamask = imageio.imread(sys.argv[i + 1])
         i += 1
@@ -234,13 +339,16 @@ while i < len(sys.argv):
         scalebarout = (sys.argv[i + 1], sys.argv[i + 2])
         cmdMode = CmdMode.UNDEF
         i += 2
-    elif arg == "--transformation":
-        if sys.argv[i + 1] == "equidistant-half":
-            opts.transformation = Transformation.EQUIDISTANT_HALF
-        elif sys.argv[i + 1] == "equidistant":
-            opts.transformation = Transformation.EQUIDISTANT
-        else:
-            raise Exception('Unknown transformation', sys.argv[i + 1])
+    elif arg == "--srctransform":
+        opts.srctransformation = parse_transform(sys.argv[i + 1])
+        i += 1
+    elif arg == "--rescale":
+        opts.rescale = (int(sys.argv[i + 1]),int(sys.argv[i + 2]))
+        i += 2
+    elif arg == "--remove_on_error":
+        opts.remove_on_error = True
+    elif arg == "--transformation" or arg == "--transform":
+        opts.transformation = parse_transform(sys.argv[i + 1])
         i += 1
     elif arg == "--range":
         opts.low = float(sys.argv[i + 1])
