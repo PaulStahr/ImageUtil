@@ -203,7 +203,7 @@ def tex2cart(x,y,tr):
         return equicyl2cart(x,y)
     elif tr == Transformation.PROJECT:
         return proj2cart(x,y)
-    elif tr == Transformation.CAMERA_PROJECT:
+    elif tr == Transformation.PERSPECTIVE:
         return perspective2cart(x,y)
     else:
         raise Exception("Unknown enum")
@@ -226,7 +226,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                    shape = opts.rescale
                 x,y = (np.mgrid[0:shape[0], 0:shape[1]] + 0.5) * 2 / np.asarray(shape)[0:2,np.newaxis,np.newaxis] - 1
                 y = -y
-                pts = ((np.arange(0,img.shape[0]) + 0.5) * 2 / img.shape[0] - 1,(np.arange(0,img.shape[1]) + 0.5) * 2 / img.shape[0] - 1)
+                pts = ((np.arange(0,img.shape[0]) + 0.5) * 2 / img.shape[0] - 1,(np.arange(0,img.shape[1]) + 0.5) * 2 / img.shape[1] - 1)
                 import scipy.interpolate
                 cart = tex2cart(x,y,opts.transformation)
                 if opts.retransform is not None:
@@ -364,7 +364,7 @@ while i < len(sys.argv):
     elif arg == "--remove_on_error":
         opts.remove_on_error = True
     elif arg == "--transformation" or arg == "--transform":
-        opcart2camerats.transformation = parse_transform(sys.argv[i + 1])
+        opts.transformation = parse_transform(sys.argv[i + 1])
         i += 1
     elif arg == "--range":
         opts.low = float(sys.argv[i + 1])
