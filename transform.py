@@ -20,6 +20,7 @@ class Transformation(Enum):
     EQUIDISTANT_HALF = 1
     CYLINDRICAL_EQUIDISTANT = 2
     PROJECT = 3
+    PERSPECTIVE = 4
 
 
 def divlim(divident, divisor):
@@ -152,6 +153,15 @@ def equicyl2cart(x,y):
     return np.asarray((cos * np.sin(x),cos * np.cos(x),np.sin(radian)))
 
 
+def perspective2cart(x,y):
+    dist = np.sqrt(np.square(x) + np.square(y) + 1)
+    return np.asarray((x / dist, y / dist, 1 / dist))
+
+
+def cart2perspective(x,y,z):
+    return np.asarray((x / z, y / z))
+
+
 def equi2cart(x, y):
     radius = np.sqrt(np.square(x) + np.square(y))
     radian = radius * np.pi
@@ -178,6 +188,8 @@ def cart2tex(x,y,z,tr):
         return cart2equi(x,y,z) * 2
     elif tr == Transformation.CYLINDRICAL_EQUIDISTANT:
         return cart2equicyl(x,y,z)
+    elif tr == Transformation.PERSPECTIVE:
+        return cart2perspective(x,y,z)
     else:
         raise Exception("Unknown enum")
 
@@ -191,6 +203,8 @@ def tex2cart(x,y,tr):
         return equicyl2cart(x,y)
     elif tr == Transformation.PROJECT:
         return proj2cart(x,y)
+    elif tr == Transformation.CAMERA_PROJECT:
+        return perspective2cart(x,y)
     else:
         raise Exception("Unknown enum")
 
@@ -295,6 +309,8 @@ def parse_transform(arg):
         return Transformation.CYLINDRICAL_EQUIDISTANT
     elif arg == "project":
         return Transformation.PROJECT
+    elif arg == "perspective":
+        return Transformation.PERSPECTIVE
     else:
         raise Exception('Unknown transformation', arg)
 
@@ -348,7 +364,7 @@ while i < len(sys.argv):
     elif arg == "--remove_on_error":
         opts.remove_on_error = True
     elif arg == "--transformation" or arg == "--transform":
-        opts.transformation = parse_transform(sys.argv[i + 1])
+        opcart2camerats.transformation = parse_transform(sys.argv[i + 1])
         i += 1
     elif arg == "--range":
         opts.low = float(sys.argv[i + 1])
