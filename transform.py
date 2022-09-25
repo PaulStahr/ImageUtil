@@ -222,11 +222,11 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
             img, header = read_image(filename)
             if opts.srctransformation is not None:
                 shape = img.shape[0:2]
+                pts = (np.linspace(-1+1/shape[0],1+1/shape[0],shape[0],endpoint=False), np.linspace(-1+1/shape[1],1+1/shape[1],shape[1],endpoint=False))
                 if opts.rescale is not None:
                    shape = opts.rescale
                 y,x = np.meshgrid(np.linspace(-1+1/shape[0],1+1/shape[0],shape[0],endpoint=False), np.linspace(-1+1/shape[1],1+1/shape[1],shape[1],endpoint=False))
-                y = -y
-                pts = ((np.arange(0,img.shape[0]) + 0.5) * 2 / img.shape[0] - 1,(np.arange(0,img.shape[1]) + 0.5) * 2 / img.shape[1] - 1)
+                np.negative(y,out=y)
                 import scipy.interpolate
                 cart = tex2cart(x,y,opts.transformation)
                 if opts.retransform is not None:
@@ -235,21 +235,23 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                     ldict = {}
                     exec(opts.retransform, args, ldict)
                     cart = ldict['cart']
-                    print(cart.shape)
                 evaluation_pts = cart2tex(*cart,opts.srctransformation)
                 evaluation_pts[1] = -evaluation_pts[1]
                 evaluation_pts = np.moveaxis(evaluation_pts,0,-1)
-                evaluation_pts = np.roll(evaluation_pts,1) #TODO this should not be needed
+                evaluation_pts = np.roll(evaluation_pts,1,axis=2)
                 img = np.asarray([scipy.interpolate.interpn(pts,img[:,:,i],evaluation_pts,bounds_error=False,fill_value=None) for i in range(img.shape[2])])
-                img = np.moveaxis(img,0,-1)
-                img = np.moveaxis(img,0,1)
-            x, y, z = np.mgrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
+                img = np.swapaxes(img,0,-1)
+            x, y, z = np.ogrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
             ds = None
             if opts.transformation == Transformation.EQUIDISTANT or opts.transformation == Transformation.EQUIDISTANT_HALF:
-                tmp = np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2) * np.pi
+                pts = (np.linspace(-1+1/shape[0],1+1/shape[0],shape[0],endpoint=False), np.linspace(-1+1/shape[1],1+1/shape[1],shape[1],endpoint=False))
+                tmp = np.sqrt(np.square(pts[0])[:,np.newaxis,np.newaxis]+np.square(pts[1])[np.newaxis,:,np.newaxis]) * np.pi
                 if opts.transformation == Transformation.EQUIDISTANT_HALF:
                     tmp /= 2
                 ds = divlim(np.sin(tmp),tmp)
+            elif opts.transformation == Transformation.CYLINDRICAL_EQUIDISTANT:
+                pts = np.linspace(-1+1/shape[0],1+1/shape[0],shape[0],endpoint=False)
+                ds = np.cos(pts)[:,np.newaxis,np.newaxis]
             args = {'np': np, 'ds': ds, 'equi2cart': equi2cart, 'cart2equi': cart2equi, 'cart2equicyl':cart2equicyl, 'equicyl2cart':equicyl2cart, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img), 'highdensity': highdensity, 'x': x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim, 'colorsys': colorsys, 'cmyk_to_rgb': cmyk_to_rgb, 'cmyk_to_rgb2': cmyk_to_rgb2, 'header':header}
             if scalarfolder is not None:
                 with open(scalarfolder + '/' + base + ".txt") as file:
