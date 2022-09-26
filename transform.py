@@ -178,8 +178,17 @@ def proj2cart(x,y):
 def cart2equi(x, y, z):
     length = np.sqrt(x * x + y * y);
     length = np.arctan2(length, z) / (length * np.pi);
-    return np.asarray((x * length, y * length))
+    res = np.asarray((x,y))
+    res *= length
+    return res
 
+
+def cart2project(x, y, z):
+    length = np.square(x)
+    length += np.square(y)
+    length += np.square(z)
+    np.sqrt(length, out=length)
+    return np.asarray((x / length, y / length))
 
 def cart2tex(x,y,z,tr):
     if tr == Transformation.EQUIDISTANT:
@@ -190,6 +199,8 @@ def cart2tex(x,y,z,tr):
         return cart2equicyl(x,y,z)
     elif tr == Transformation.PERSPECTIVE:
         return cart2perspective(x,y,z)
+    elif tr == Transformation.PROJECT:
+        return cart2project(x,y,z)
     else:
         raise Exception("Unknown enum")
 
@@ -198,7 +209,7 @@ def tex2cart(x,y,tr):
     if tr == Transformation.EQUIDISTANT:
         return equi2cart(x,y)
     elif tr == Transformation.EQUIDISTANT_HALF:
-        return equi2cart(x * 2,y * 2) * 2
+        return equi2cart(x * 0.5,y * 0.5)
     elif tr == Transformation.CYLINDRICAL_EQUIDISTANT:
         return equicyl2cart(x,y)
     elif tr == Transformation.PROJECT:
@@ -217,11 +228,10 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
             raise Exception("Different lengths in filename and scalfilenames", len(filenames[i]), len(scalfilenames[i]))
         for j in range(len(filenames[i])):
             filename = filenames[i][j]
-            print(filename)
             base = os.path.splitext(os.path.basename(filename))[0]
             img, header = read_image(filename)
+            shape = img.shape
             if opts.srctransformation is not None:
-                shape = img.shape[0:2]
                 pts = (np.linspace(-1+1/shape[0],1+1/shape[0],shape[0],endpoint=False), np.linspace(-1+1/shape[1],1+1/shape[1],shape[1],endpoint=False))
                 if opts.rescale is not None:
                    shape = opts.rescale
@@ -235,10 +245,11 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                     ldict = {}
                     exec(opts.retransform, args, ldict)
                     cart = ldict['cart']
+
                 evaluation_pts = cart2tex(*cart,opts.srctransformation)
                 evaluation_pts[1] = -evaluation_pts[1]
+                evaluation_pts = np.roll(evaluation_pts,1,axis=0)
                 evaluation_pts = np.moveaxis(evaluation_pts,0,-1)
-                evaluation_pts = np.roll(evaluation_pts,1,axis=2)
                 img = np.asarray([scipy.interpolate.interpn(pts,img[:,:,i],evaluation_pts,bounds_error=False,fill_value=None) for i in range(img.shape[2])])
                 img = np.swapaxes(img,0,-1)
             x, y, z = np.ogrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
@@ -301,7 +312,6 @@ def process_frames(inputs, scalarinputs, scalarfolder, outputs, distoutputs, opt
                                                                                                         njobs)],
                                                         scalarfolder, outputs, distoutputs, opts, logging) for i in range(num_cores))
 
-
 def parse_transform(arg):
     if arg == "equidistant-half":
         return Transformation.EQUIDISTANT_HALF
@@ -315,6 +325,7 @@ def parse_transform(arg):
         return Transformation.PERSPECTIVE
     else:
         raise Exception('Unknown transformation', arg)
+
 
 inputs = []
 scalarinputs = []
@@ -363,6 +374,8 @@ while i < len(sys.argv):
     elif arg == "--rescale":
         opts.rescale = (int(sys.argv[i + 1]),int(sys.argv[i + 2]))
         i += 2
+    elif arg == "--test":
+        test()
     elif arg == "--remove_on_error":
         opts.remove_on_error = True
     elif arg == "--transformation" or arg == "--transform":
