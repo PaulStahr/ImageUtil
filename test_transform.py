@@ -11,8 +11,8 @@ class TestStringMethods(unittest.TestCase):
             pts_res = transform.cart2tex(*cart,tr = tr)
             np.testing.assert_array_almost_equal(pts, pts_res,err_msg=tr.name)
             #,msg=tr.name + " Arrays not equal " + str(pts) + " " + str(pts_res)
-    
-    
+
+
     def test(self):
         self.assertEqual('foo'.upper(), 'FOO')
 

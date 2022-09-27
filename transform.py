@@ -141,20 +141,29 @@ def write_fimage(filename, img):
 
 
 def cart2equicyl(x,y,z):
-    length = np.sqrt(x * x + y * y);
-    length = 1 - np.arctan2(length, z) * 2 / np.pi;
-    return np.asarray((np.arctan2(x,y) / np.pi, length))
+    length = np.square(x)
+    length += np.square(y)
+    np.sqrt(length, out=length)
+    np.arctan2(length, z,out=length)
+    length *= 2 / np.pi
+    np.subtract(1,length,out=length)
+    tan = np.arctan2(x,y)
+    tan /= np.pi
+    return np.asarray((tan, length))
 
 
 def equicyl2cart(x,y):
-    radian = y * np.pi * 0.5
+    radian = y * (np.pi * 0.5)
     cos = np.cos(radian)
     x = x * np.pi
     return np.asarray((cos * np.sin(x),cos * np.cos(x),np.sin(radian)))
 
 
 def perspective2cart(x,y):
-    dist = np.sqrt(np.square(x) + np.square(y) + 1)
+    dist = np.square(x)
+    dist += np.square(y)
+    dist += 1
+    np.sqrt(dist, out=dist)
     return np.asarray((x / dist, y / dist, 1 / dist))
 
 
@@ -166,7 +175,8 @@ def equi2cart(x, y):
     radius = np.sqrt(np.square(x) + np.square(y))
     radian = radius * np.pi
     sin = np.sin(radian)
-    return np.asarray((divlim(sin * x, radius), divlim(sin * y, radius), np.cos(radian)))
+    div = divlim(sin, radius)
+    return np.asarray((div * x, div * y, np.cos(radian)))
 
 
 def proj2cart(x,y):
@@ -176,8 +186,11 @@ def proj2cart(x,y):
 
 
 def cart2equi(x, y, z):
-    length = np.sqrt(x * x + y * y);
-    length = np.arctan2(length, z) / (length * np.pi);
+    length = np.square(x)
+    length += np.square(y)
+    np.sqrt(length, out=length)
+    length = np.arctan2(length, z) / length;
+    length /= np.pi
     res = np.asarray((x,y))
     res *= length
     return res
@@ -250,7 +263,7 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                 evaluation_pts[1] = -evaluation_pts[1]
                 evaluation_pts = np.roll(evaluation_pts,1,axis=0)
                 evaluation_pts = np.moveaxis(evaluation_pts,0,-1)
-                img = np.asarray([scipy.interpolate.interpn(pts,img[:,:,i],evaluation_pts,bounds_error=False,fill_value=None) for i in range(img.shape[2])])
+                img = np.asarray([scipy.interpolate.interpn(pts,img[:,:,c],evaluation_pts,bounds_error=False,fill_value=None) for c in range(img.shape[2])])
                 img = np.swapaxes(img,0,-1)
             x, y, z = np.ogrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
             ds = None

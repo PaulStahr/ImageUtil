@@ -23,3 +23,6 @@ jobs:
           pip install pytest
           pip install pytest-cov
           pytest
+      - name: Test with make
+        run: |
+          make test_all
