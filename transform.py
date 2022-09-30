@@ -24,7 +24,9 @@ class Transformation(Enum):
 
 
 def divlim(divident, divisor):
-    return np.divide(divident, divisor, np.ones_like(divident), where=np.logical_or(divident!=0,divisor!=0))
+    mask = divident!=0
+    np.logical_or(mask,divisor!=0,out=mask)
+    return np.divide(divident, divisor, np.ones_like(divident), where=mask)
 
 
 def highdensity(img, p, transformation = None):
@@ -153,10 +155,16 @@ def cart2equicyl(x,y,z):
 
 
 def equicyl2cart(x,y):
-    radian = y * (np.pi * 0.5)
-    cos = np.cos(radian)
-    x = x * np.pi
-    return np.asarray((cos * np.sin(x),cos * np.cos(x),np.sin(radian)))
+    latitude = y * (np.pi * 0.5)
+    cos = np.cos(latitude)
+    longitude = x * np.pi
+    xres = np.sin(longitude)
+    xres *= cos
+    yres = np.cos(longitude)
+    yres *= cos
+    zres = latitude
+    np.sin(latitude,out=zres)
+    return np.asarray((xres,yres,zres))
 
 
 def perspective2cart(x,y):
@@ -164,39 +172,47 @@ def perspective2cart(x,y):
     dist += np.square(y)
     dist += 1
     np.sqrt(dist, out=dist)
-    return np.asarray((x / dist, y / dist, 1 / dist))
+    return np.asarray((x / dist, y / dist, -1 / dist))
 
 
 def cart2perspective(x,y,z):
-    return np.asarray((x / z, y / z))
+    tmp = -z
+    return np.asarray((x / tmp, y / tmp))
 
 
 def equi2cart(x, y):
-    radius = np.sqrt(np.square(x) + np.square(y))
+    radius = np.square(x)
+    radius += np.square(y)
+    np.sqrt(radius,out=radius)
     radian = radius * np.pi
     sin = np.sin(radian)
     div = divlim(sin, radius)
-    return np.asarray((div * x, div * y, np.cos(radian)))
-
-
-def proj2cart(x,y):
-    z = 1-np.square(x)-np.square(y)
-    np.sqrt(z,out=z)
-    return np.asarray((x,y,z))
+    cos = np.cos(radian)
+    np.negative(cos,out=cos)
+    return np.asarray((div * x, div * y, cos))
 
 
 def cart2equi(x, y, z):
     length = np.square(x)
     length += np.square(y)
     np.sqrt(length, out=length)
-    length = np.arctan2(length, z) / length;
+    length = np.arctan2(length, -z) / length;
     length /= np.pi
     res = np.asarray((x,y))
     res *= length
     return res
 
 
-def cart2project(x, y, z):
+def proj2cart(x,y):
+    z = np.square(x)
+    z += np.square(y)
+    np.subtract(1,z,out=z)
+    np.sqrt(z,out=z)
+    np.negative(z,out=z)
+    return np.asarray((x,y,z))
+
+
+def cart2proj(x, y, z):
     length = np.square(x)
     length += np.square(y)
     length += np.square(z)
@@ -213,7 +229,7 @@ def cart2tex(x,y,z,tr):
     elif tr == Transformation.PERSPECTIVE:
         return cart2perspective(x,y,z)
     elif tr == Transformation.PROJECT:
-        return cart2project(x,y,z)
+        return cart2proj(x,y,z)
     else:
         raise Exception("Unknown enum")
 
@@ -248,30 +264,32 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                 pts = (np.linspace(-1+1/shape[0],1+1/shape[0],shape[0],endpoint=False), np.linspace(-1+1/shape[1],1+1/shape[1],shape[1],endpoint=False))
                 if opts.rescale is not None:
                    shape = opts.rescale
-                y,x = np.meshgrid(np.linspace(-1+1/shape[0],1+1/shape[0],shape[0],endpoint=False), np.linspace(-1+1/shape[1],1+1/shape[1],shape[1],endpoint=False))
-                np.negative(y,out=y)
+                x,y = np.meshgrid(np.linspace(-1+1/shape[0],1+1/shape[0],shape[0],endpoint=False), np.linspace(-1+1/shape[1],1+1/shape[1],shape[1],endpoint=False))
                 import scipy.interpolate
                 cart = tex2cart(x,y,opts.transformation)
                 if opts.retransform is not None:
                     from scipy.spatial.transform import Rotation as R
                     args = {'R':R, 'np':np, 'cart':cart}
-                    ldict = {}
+                    ldict = {'cart':cart}
                     exec(opts.retransform, args, ldict)
                     cart = ldict['cart']
-
                 evaluation_pts = cart2tex(*cart,opts.srctransformation)
-                evaluation_pts[1] = -evaluation_pts[1]
-                evaluation_pts = np.roll(evaluation_pts,1,axis=0)
+                np.negative(evaluation_pts[1],out=evaluation_pts[1])
+                evaluation_pts = evaluation_pts[::-1,::-1]
                 evaluation_pts = np.moveaxis(evaluation_pts,0,-1)
-                img = np.asarray([scipy.interpolate.interpn(pts,img[:,:,c],evaluation_pts,bounds_error=False,fill_value=None) for c in range(img.shape[2])])
-                img = np.swapaxes(img,0,-1)
+                img = np.dstack([scipy.interpolate.interpn(pts,img[:,:,c],evaluation_pts,bounds_error=False,fill_value=None) for c in range(img.shape[2])])
+                #import matplotlib.pyplot as plt
+                #plt.scatter(evaluation_pts[:,:,0].flatten(), evaluation_pts[:,:,1].flatten(),s=0.5,c=img.reshape(-1, img.shape[-1]).astype(int)/255)
+                #plt.show()
             x, y, z = np.ogrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
             ds = None
             if opts.transformation == Transformation.EQUIDISTANT or opts.transformation == Transformation.EQUIDISTANT_HALF:
-                pts = (np.linspace(-1+1/shape[0],1+1/shape[0],shape[0],endpoint=False), np.linspace(-1+1/shape[1],1+1/shape[1],shape[1],endpoint=False))
-                tmp = np.sqrt(np.square(pts[0])[:,np.newaxis,np.newaxis]+np.square(pts[1])[np.newaxis,:,np.newaxis]) * np.pi
+                mult = np.pi
                 if opts.transformation == Transformation.EQUIDISTANT_HALF:
-                    tmp /= 2
+                    mult /= 2
+                pts = (np.linspace((-1+1/shape[0])*mult,(1+1/shape[0])*mult,shape[0],endpoint=False), np.linspace((-1+1/shape[1])*mult,(1+1/shape[1])*mult,shape[1],endpoint=False))
+                tmp = np.square(pts[0])[:,np.newaxis,np.newaxis]+np.square(pts[1])[np.newaxis,:,np.newaxis]
+                tmp = np.sqrt(tmp,out=tmp)
                 ds = divlim(np.sin(tmp),tmp)
             elif opts.transformation == Transformation.CYLINDRICAL_EQUIDISTANT:
                 pts = np.linspace(-1+1/shape[0],1+1/shape[0],shape[0],endpoint=False)
