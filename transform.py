@@ -29,6 +29,18 @@ def divlim(divident, divisor):
     return np.divide(divident, divisor, np.ones_like(divident), where=mask)
 
 
+def percentile(img, weight, ds=None):
+    if ds is None:
+        sort = np.sort(img.flatten())
+        cs = np.cumsum(sort)
+        return img > sort[np.searchsorted(cs, weight * cs[-1])]
+    else:
+        flat = img.flatten()
+        sort_to_weight = np.argsort(flat)[::-1]
+        cs = np.cumsum((img * ds).flatten()[sort_to_weight])
+        return img > flat[sort_to_weight[np.searchsorted(cs, weight * cs[-1])]]
+
+
 def highdensity(img, p, transformation = None):
     permutation = np.argsort(img.flatten())
     cumsum = None
@@ -283,18 +295,19 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                 #plt.show()
             x, y, z = np.ogrid[0:img.shape[0], 0:img.shape[1], 0:img.shape[2]]
             ds = None
+            elev = None
             if opts.transformation == Transformation.EQUIDISTANT or opts.transformation == Transformation.EQUIDISTANT_HALF:
                 mult = np.pi
                 if opts.transformation == Transformation.EQUIDISTANT_HALF:
                     mult /= 2
                 pts = (np.linspace((-1+1/shape[0])*mult,(1+1/shape[0])*mult,shape[0],endpoint=False), np.linspace((-1+1/shape[1])*mult,(1+1/shape[1])*mult,shape[1],endpoint=False))
-                tmp = np.square(pts[0])[:,np.newaxis,np.newaxis]+np.square(pts[1])[np.newaxis,:,np.newaxis]
-                tmp = np.sqrt(tmp,out=tmp)
-                ds = divlim(np.sin(tmp),tmp)
+                elev = np.square(pts[0])[:,np.newaxis,np.newaxis]+np.square(pts[1])[np.newaxis,:,np.newaxis]
+                elev = np.sqrt(elev,out=elev)
+                ds = divlim(np.sin(elev),elev)
             elif opts.transformation == Transformation.CYLINDRICAL_EQUIDISTANT:
                 pts = np.linspace(-1+1/shape[0],1+1/shape[0],shape[0],endpoint=False)
                 ds = np.cos(pts)[:,np.newaxis,np.newaxis]
-            args = {'np': np, 'ds': ds, 'equi2cart': equi2cart, 'cart2equi': cart2equi, 'cart2equicyl':cart2equicyl, 'equicyl2cart':equicyl2cart, 'img': img, 'cm': cm, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img), 'highdensity': highdensity, 'x': x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim, 'colorsys': colorsys, 'cmyk_to_rgb': cmyk_to_rgb, 'cmyk_to_rgb2': cmyk_to_rgb2, 'header':header}
+            args = {'np': np, 'ds': ds, 'elev':elev, 'equi2cart': equi2cart, 'cart2equi': cart2equi, 'cart2equicyl':cart2equicyl, 'equicyl2cart':equicyl2cart, 'img': img, 'cm': cm, 'percentile':percentile, 'highres': highres, 'opts': opts, 'min': np.min(img), 'max': np.max(img), 'highdensity': highdensity, 'x': x, 'y': y, 'z': z, 'xf': x/img.shape[0], 'yf': y/img.shape[1], 'zf':z/img.shape[2], 'rf': np.sqrt(((x*2-img.shape[0])/img.shape[0])**2+((y*2-img.shape[1])/img.shape[1])**2), 'divlim': divlim, 'colorsys': colorsys, 'cmyk_to_rgb': cmyk_to_rgb, 'cmyk_to_rgb2': cmyk_to_rgb2, 'header':header}
             if scalarfolder is not None:
                 with open(scalarfolder + '/' + base + ".txt") as file:
                     args['scal'] = float(file.readline())
@@ -311,14 +324,14 @@ def process_frame(filenames, scalfilenames, scalarfolder, outputs, distoutputs, 
                         os.remove(filename)
                     raise
                 try:
-                    filename = output[1] + '/' + base + output[2]
+                    filename = output[1].replace("{}",base)
                     create_parent_directory(filename)
                     write_fimage(filename, out)
                 except Exception as ex:
                     print("Can't write image", ex)
             for output in distoutputs:
                 out = eval(output[0], args)
-                filename = output[1] + '/' + base + output[2]
+                filename = output[1].replace("{}",base)
                 create_parent_directory(filename)
                 if len(out.shape) == 2:
                     np.savetxt(filename, out, delimiter=' ', fmt='%f')
