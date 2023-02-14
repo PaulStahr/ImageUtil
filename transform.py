@@ -125,6 +125,8 @@ def read_image(file):
         header = f.input_file.header()
         img = f.get('default', pyexr.FLOAT)
         #img = pyexr.read(file)
+    elif file.endswith(".csv"):
+        img = np.loadtxt(file)
     else:
         import imageio
         img = imageio.v2.imread(file)
